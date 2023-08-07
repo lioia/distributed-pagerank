@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func Print(matrix [][]int) {
+func PrintMatrix(matrix [][]int) {
 	for i := range matrix {
 		for j := range matrix[i] {
 			fmt.Printf("%d ", matrix[i][j])
@@ -16,10 +16,20 @@ func Print(matrix [][]int) {
 	}
 }
 
+func PrintList(graph map[int][]int) {
+	for from, to := range graph {
+		fmt.Printf("%d -> ", from)
+		for _, v := range to {
+			fmt.Printf("%d ", v)
+		}
+		fmt.Println()
+	}
+}
+
 // Load file and creates adjacency matrix
 // Adjacency Matrix A of G=(V, E) defined as follow: a_(i j) = 1 iff (i j) in E
 // TODO: it currently requires a double pass of the file, maybe it can be created in a single pass
-func LoadFromFile(path string) ([][]int, error) {
+func LoadAdjacencyMatrixFromFile(path string) ([][]int, error) {
 	bytes, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("could not open file %s", path)
@@ -60,6 +70,26 @@ func LoadFromFile(path string) ([][]int, error) {
 	}
 
 	return matrix, nil
+}
+
+func LoadAdjacencyListFromFile(path string) (map[int][]int, error) {
+	graph := make(map[int][]int)
+	bytes, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("could not open file %s", path)
+	}
+	lines := strings.Split(strings.ReplaceAll(string(bytes), "\r\n", "\n"), "\n")
+	for _, line := range lines {
+		fromNode, toNode, skip, err := convertLine(line)
+		if err != nil {
+			return nil, err
+		}
+		if skip {
+			continue
+		}
+		graph[fromNode] = append(graph[fromNode], toNode)
+	}
+	return graph, nil
 }
 
 func convertLine(line string) (int, int, bool, error) {
