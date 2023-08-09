@@ -1,16 +1,18 @@
 package main
 
-import "github.com/lioia/distributed-pagerank/lib"
+import (
+	"github.com/lioia/distributed-pagerank/lib"
+)
 
 func main() {
-	matrix, err := lib.LoadAdjacencyMatrixFromFile("graph.txt")
-	if err != nil {
-		panic(err)
-	}
-	lib.PrintMatrix(matrix)
+	dampingFactor := 0.85
+	threshold := 0.0001
 	list, err := lib.LoadAdjacencyListFromFile("graph.txt")
 	if err != nil {
 		panic(err)
 	}
-	lib.PrintList(list)
+	lib.PrintGraphAdjacencyList(list)
+	lib.InitializeEValues(list)
+	lib.PageRank(list, dampingFactor, threshold)
+	lib.PrintRanksAdjacencyList(list)
 }

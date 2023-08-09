@@ -7,29 +7,43 @@ import (
 	"strings"
 )
 
-func PrintMatrix(matrix [][]int) {
-	for i := range matrix {
-		for j := range matrix[i] {
-			fmt.Printf("%d ", matrix[i][j])
+type Node struct {
+	ID       int     // Node identifier
+	OutLinks []int   // Connected nodes
+	Rank     float64 // Current PageRank
+	EValue   float64 // E probability vector
+}
+
+func PrintMatrix(graph [][]float64) {
+	size := len(graph)
+	for i := 0; i < size; i++ {
+		for j := 0; j < size; j++ {
+			fmt.Printf("%.4f ", graph[i][j])
 		}
 		fmt.Println()
 	}
 }
 
-func PrintList(graph map[int][]int) {
-	for from, to := range graph {
-		fmt.Printf("%d -> ", from)
-		for _, v := range to {
+func PrintGraphAdjacencyList(graph map[int]*Node) {
+	for _, node := range graph {
+		fmt.Printf("%d -> ", node.ID)
+		for _, v := range node.OutLinks {
 			fmt.Printf("%d ", v)
 		}
 		fmt.Println()
 	}
 }
 
+func PrintRanksAdjacencyList(graph map[int]*Node) {
+	for _, node := range graph {
+		fmt.Printf("Node %d with rank: %.4f\n", node.ID, node.Rank)
+	}
+}
+
 // Load file and creates adjacency matrix
 // Adjacency Matrix A of G=(V, E) defined as follow: a_(i j) = 1 iff (i j) in E
 // TODO: it currently requires a double pass of the file, maybe it can be created in a single pass
-func LoadAdjacencyMatrixFromFile(path string) ([][]int, error) {
+func LoadAdjacencyMatrixFromFile(path string) ([][]float64, error) {
 	bytes, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("could not open file %s", path)
@@ -53,9 +67,9 @@ func LoadAdjacencyMatrixFromFile(path string) ([][]int, error) {
 		}
 	}
 
-	matrix := make([][]int, numberOfNodes)
+	matrix := make([][]float64, numberOfNodes)
 	for i := 0; i < numberOfNodes; i++ {
-		matrix[i] = make([]int, numberOfNodes)
+		matrix[i] = make([]float64, numberOfNodes)
 	}
 
 	for _, line := range lines {
@@ -66,28 +80,37 @@ func LoadAdjacencyMatrixFromFile(path string) ([][]int, error) {
 		if skip {
 			continue
 		}
-		matrix[fromNode-1][toNode-1] = 1
+		matrix[fromNode-1][toNode-1] = 1.0
 	}
 
 	return matrix, nil
 }
 
-func LoadAdjacencyListFromFile(path string) (map[int][]int, error) {
-	graph := make(map[int][]int)
+func LoadAdjacencyListFromFile(path string) (map[int]*Node, error) {
+	graph := make(map[int]*Node)
+	// Read file
 	bytes, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("could not open file %s", path)
 	}
+	// Split file contents in lines (based on newline delimiter)
 	lines := strings.Split(strings.ReplaceAll(string(bytes), "\r\n", "\n"), "\n")
 	for _, line := range lines {
 		fromNode, toNode, skip, err := convertLine(line)
+		// There was an error loading the line
 		if err != nil {
 			return nil, err
 		}
+		// Comment line -> no new node to add
 		if skip {
 			continue
 		}
-		graph[fromNode] = append(graph[fromNode], toNode)
+		// First time encoutering this node, so it has to be created
+		if graph[fromNode] == nil {
+			graph[fromNode] = &Node{ID: fromNode, Rank: 1.0}
+		}
+		// Adding the outlink to the current node
+		graph[fromNode].OutLinks = append(graph[fromNode].OutLinks, toNode)
 	}
 	return graph, nil
 }
