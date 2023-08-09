@@ -5,17 +5,19 @@ import (
 	"math"
 )
 
+// R_(i + 1) (u) = c sum_(v in B_u) (R_i(v) / N_v) + (1 - c)E(u)
 func PageRank(graph map[int]*Node, dampingFactor, threshold float64) {
-	// Map Phase
 	sum := make(map[int]float64)
 	for _, node := range graph {
-		nV := len(node.OutLinks)
-		for _, outLink := range node.OutLinks {
-			sum[outLink] += node.Rank / float64(nV)
+		// Map Phase: sum_(v in B_u) (R_i(v) / N_v)
+		nV := float64(len(node.OutLinks))
+		for _, v := range node.OutLinks {
+			currentVRank := graph[v].Rank
+			sum[v] += currentVRank / nV
 		}
 	}
 
-	// Reduce phase (convergence check)
+	// Reduce phase (convergence check): R_(i + 1) (u) = c * sum + (1-c)*E(u)
 	converged := true
 	for id, node := range graph {
 		oldRank := node.Rank
