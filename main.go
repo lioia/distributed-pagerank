@@ -5,14 +5,14 @@ import (
 )
 
 func main() {
+	// TODO: load from configuration file
 	dampingFactor := 0.85
 	threshold := 0.0001
-	list, err := lib.LoadAdjacencyListFromFile("graph.txt")
-	if err != nil {
+
+	var graph lib.Graph
+	if err := graph.LoadFromFile("graph.txt"); err != nil {
 		panic(err)
 	}
-	lib.PrintGraphAdjacencyList(list)
-	lib.InitializeEValues(list)
-	lib.PageRank(list, dampingFactor, threshold)
-	lib.PrintRanksAdjacencyList(list)
+	graph.PageRank(dampingFactor, threshold)
+	graph.Print()
 }
