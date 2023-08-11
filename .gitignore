@@ -22,3 +22,6 @@ go.work
 
 graph.txt
 
+# Protobuf compilation output
+*.pb.go
+

@@ -59,7 +59,7 @@ func (g *Graph) GoroutinesPageRank(dampingFactor, threshold float64) {
 	}
 }
 
-func mapper(u *Node, channel chan map[int]float64) {
+func mapper(u *GraphNode, channel chan map[int]float64) {
 	contributions := make(map[int]float64)
 	nV := float64(len(u.OutLinks))
 	for _, v := range u.OutLinks {
@@ -68,7 +68,7 @@ func mapper(u *Node, channel chan map[int]float64) {
 	channel <- contributions
 }
 
-func reducer(node *Node, sum, dampingFactor float64,
+func reducer(node *GraphNode, sum, dampingFactor float64,
 	convergenceDiff chan float64) {
 	oldRank := node.Rank
 	newRank := dampingFactor*sum + (1-dampingFactor)*node.EValue

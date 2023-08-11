@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+option go_package = "github.com/lioia/distributed-pagerank/lib";
+
+package lib;
+
+service Node {
+  rpc HealthCheck(Empty) returns (Empty) {}
+  rpc GetInfo(ConnectionInfo) returns (Info) {}
+  rpc Announce(AnnounceMessage) returns (Empty) {}
+}
+
+message Empty {}
+
+message ConnectionInfo {
+  string address = 1;
+  int32 port = 2;
+}
+
+message Info {
+  int32 layerNumber = 1;
+  // Layer 1 info
+  repeated ConnectionInfo layer1s = 2;
+  // repeated string layer1Addresses = 2; // list of layer 1 node address
+  // repeated int32 layer1Port = 3;       // list of layer 1 node port
+  // Layer 2 info
+  optional ConnectionInfo assigned = 3;
+  // optional string assignedAddress = 4; // assigned layer 1 node address
+  // optional int32 assignedPort = 5;     // assigned layer 1 node port
+}
+
+message AnnounceMessage {
+  ConnectionInfo connection = 1; // Join node connection info
+  int32 layerNumber = 2;         // Join node layer number
+}

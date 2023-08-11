@@ -10,14 +10,14 @@ import (
 
 // Struct to _attach_ methods to
 type Graph struct {
-	Nodes map[int]*Node
+	Nodes map[int]*GraphNode
 }
 
-type Node struct {
-	ID       int           // Node identifier
-	OutLinks map[int]*Node // Nodes this node points to
-	Rank     float64       // Current PageRank
-	EValue   float64       // E probability vector
+type GraphNode struct {
+	ID       int                // Node identifier
+	OutLinks map[int]*GraphNode // Nodes this node points to
+	Rank     float64            // Current PageRank
+	EValue   float64            // E probability vector
 }
 
 func (g *Graph) Print() {
@@ -32,7 +32,7 @@ func (g *Graph) Print() {
 }
 
 func (g *Graph) LoadFromFile(path string) error {
-	g.Nodes = make(map[int]*Node)
+	g.Nodes = make(map[int]*GraphNode)
 	// Read file
 	bytes, err := os.ReadFile(path)
 	if err != nil {
@@ -52,15 +52,15 @@ func (g *Graph) LoadFromFile(path string) error {
 		}
 		// First time encoutering this node, so it has to be created
 		if g.Nodes[from] == nil {
-			g.Nodes[from] = &Node{
+			g.Nodes[from] = &GraphNode{
 				ID:       from,
-				OutLinks: make(map[int]*Node),
+				OutLinks: make(map[int]*GraphNode),
 			}
 		}
 		if g.Nodes[to] == nil {
-			g.Nodes[to] = &Node{
+			g.Nodes[to] = &GraphNode{
 				ID:       to,
-				OutLinks: make(map[int]*Node),
+				OutLinks: make(map[int]*GraphNode),
 			}
 		}
 		// Adding the outlink to the current node
