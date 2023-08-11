@@ -34,19 +34,32 @@ func (n *NodeServerImpl) GetInfo(_ context.Context, in *lib.ConnectionInfo) (*li
 		// Layer 2 node
 		info.LayerNumber = 2
 		// Find the layer 1 node with the least number of nodes
-		var assigned *lib.ConnectionInfo
+		var assigned int
 		var minNumOfNodes int32 = 1<<31 - 1 // max int32 value
 		for i, v := range first.NumberOfNodes {
 			if minNumOfNodes > v {
 				minNumOfNodes = v
-				assigned = first.Layer1s[i]
+				assigned = i
 			}
 		}
-		info.Assigned = assigned
+		info.Assigned = first.Layer1s[assigned]
+		first.NumberOfNodes[assigned] += 1
 	}
 	return &info, nil
 }
 
 func (n *NodeServerImpl) Announce(_ context.Context, in *lib.AnnounceMessage) (*lib.Empty, error) {
-	return &lib.Empty{}, nil
+	empty := &lib.Empty{}
+	node, ok := (*n.Node).(*Layer1Node)
+	if !ok {
+		return empty, errors.New("request cannot be fulfilled by this node")
+	}
+	if in.LayerNumber == 1 {
+		node.Layer1s = append(node.Layer1s, in.Connection)
+	} else if in.LayerNumber == 2 {
+		node.Layer2s = append(node.Layer2s, in.Connection)
+	} else {
+		return empty, errors.New("request cannot be fulfilled by this node")
+	}
+	return empty, nil
 }
