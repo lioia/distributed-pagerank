@@ -22,18 +22,28 @@ func (n *NodeServerImpl) GetInfo(_ context.Context, in *lib.ConnectionInfo) (*li
 	if !ok || first.Layer != 0 {
 		return &info, errors.New("request cannot be fulfilled by this node")
 	}
-	// TODO: 4 should be a configuration variable
-	if len(first.Layer1s) < 4 {
-		// There are not enough layer 1s node -> this node is a layer 1
-		info.LayerNumber = 1
+	// Dynamic Node Placement
+	info.LayerNumber = 1
+	foundNoSubNodes := false
+	// New node will be placed as a sub-node to a layer 1 node with 0 sub-nodes
+	for _, v := range first.NumberOfNodes {
+		if v == 0 {
+			foundNoSubNodes = true
+			break
+		}
+	}
+	// TODO: 3 should be a configurable variable
+	if foundNoSubNodes || len(first.NumberOfNodes) > 3 {
+		info.LayerNumber = 2
+	}
+	if info.LayerNumber == 1 { // Layer 1 Node
 		// Sending already present layer 1 nodes in the network
 		info.Layer1S = first.Layer1s
 		// Add node requesting info to list of layer1s
 		first.Layer1s = append(first.Layer1s, in)
-	} else {
-		// Layer 2 node
-		info.LayerNumber = 2
+	} else { // Layer 2 Node
 		// Find the layer 1 node with the least number of nodes
+		// NOTE: this search could be moved to the previous for loop (L-17)
 		var assigned int
 		var minNumOfNodes int32 = 1<<31 - 1 // max int32 value
 		for i, v := range first.NumberOfNodes {
@@ -64,17 +74,17 @@ func (n *NodeServerImpl) Announce(_ context.Context, in *lib.AnnounceMessage) (*
 	return empty, nil
 }
 
-func (n *NodeServerImpl) UploadGraph(_ context.Context, in *lib.GraphFile) (*lib.Empty, error) {
-	empty := &lib.Empty{}
+func (n *NodeServerImpl) UploadGraph(_ context.Context, in *lib.GraphFile) (*lib.Ranks, error) {
+	ranks := &lib.Ranks{}
 	first, ok := (*n.Node).(*Layer1Node)
 	if !ok || first.Layer != 0 {
-		return empty, errors.New("request cannot be fulfilled by this node")
+		return ranks, errors.New("request cannot be fulfilled by this node")
 	}
 	graph := make(lib.Graph)
 	if err := graph.LoadFromBytes(in.Contents); err != nil {
-		return empty, err
+		return ranks, err
 	}
-	// TODO: start computation
+	// TODO: start computation and get pageranks
 
-	return empty, nil
+	return ranks, nil
 }
