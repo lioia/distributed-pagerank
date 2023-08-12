@@ -20,7 +20,7 @@ func (n *NodeServerImpl) GetInfo(_ context.Context, in *lib.ConnectionInfo) (*li
 	var info lib.Info
 	first, ok := (*n.Node).(*Layer1Node)
 	if !ok || first.Layer != 0 {
-		return &info, errors.New("cannot ask info on a node that is not the first")
+		return &info, errors.New("request cannot be fulfilled by this node")
 	}
 	// TODO: 4 should be a configuration variable
 	if len(first.Layer1s) < 4 {
@@ -61,5 +61,20 @@ func (n *NodeServerImpl) Announce(_ context.Context, in *lib.AnnounceMessage) (*
 	} else {
 		return empty, errors.New("request cannot be fulfilled by this node")
 	}
+	return empty, nil
+}
+
+func (n *NodeServerImpl) UploadGraph(_ context.Context, in *lib.GraphFile) (*lib.Empty, error) {
+	empty := &lib.Empty{}
+	first, ok := (*n.Node).(*Layer1Node)
+	if !ok || first.Layer != 0 {
+		return empty, errors.New("request cannot be fulfilled by this node")
+	}
+	graph := make(lib.Graph)
+	if err := graph.LoadFromBytes(in.Contents); err != nil {
+		return empty, err
+	}
+	// TODO: start computation
+
 	return empty, nil
 }

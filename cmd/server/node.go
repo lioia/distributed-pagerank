@@ -14,6 +14,7 @@ type BaseNode struct {
 	Layer   int32
 	Address string
 	Port    int32
+	Graph   lib.Graph
 }
 
 type Layer1Node struct {
