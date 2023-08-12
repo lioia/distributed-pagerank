@@ -44,8 +44,11 @@ func (n *Layer1Node) Init(info *lib.Info) error {
 			return err
 		}
 		announceMsg := lib.AnnounceMessage{
-			Address: n.Address,
-			Port:    n.Port,
+			LayerNumber: 1,
+			Connection: &lib.ConnectionInfo{
+				Address: n.Address,
+				Port:    n.Port,
+			},
 		}
 		_, err = clientInfo.Client.Announce(clientInfo.Context, &announceMsg)
 		// FIXME: error handling
@@ -66,8 +69,11 @@ func (n *Layer2Node) Init(info *lib.Info) error {
 		return err
 	}
 	announceMsg := lib.AnnounceMessage{
-		Address: n.Address,
-		Port:    n.Port,
+		LayerNumber: 2,
+		Connection: &lib.ConnectionInfo{
+			Address: n.Address,
+			Port:    n.Port,
+		},
 	}
 	_, err = clientInfo.Client.Announce(clientInfo.Context, &announceMsg)
 	// FIXME: error handling
