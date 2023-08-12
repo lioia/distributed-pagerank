@@ -6,9 +6,9 @@ import (
 )
 
 // R_(i + 1) (u) = c sum_(v in B_u) (R_i(v) / N_v) + (1 - c)E(u)
-func (g *Graph) PageRank(dampingFactor, threshold float64) {
+func (g *Graph) SingleNodePageRank(dampingFactor, threshold float64) {
 	for i := 0; i < 100; i++ {
-		sum := make(map[int]float64)
+		sum := make(map[int32]float64)
 		for _, u := range *g {
 			// Map Phase: sum_(v in B_u) (R_i(v) / N_v)
 			nV := float64(len(u.OutLinks))
@@ -33,10 +33,10 @@ func (g *Graph) PageRank(dampingFactor, threshold float64) {
 }
 
 func (g *Graph) GoroutinesPageRank(dampingFactor, threshold float64) {
-	contributionChannel := make(chan map[int]float64)
+	contributionChannel := make(chan map[int32]float64)
 	convergenceChannel := make(chan float64)
 	for i := 0; i < 100; i++ {
-		sum := make(map[int]float64)
+		sum := make(map[int32]float64)
 		// Map
 		for _, u := range *g {
 			go mapper(u, contributionChannel)
@@ -59,8 +59,8 @@ func (g *Graph) GoroutinesPageRank(dampingFactor, threshold float64) {
 	}
 }
 
-func mapper(u *GraphNode, channel chan map[int]float64) {
-	contributions := make(map[int]float64)
+func mapper(u *GraphNode, channel chan map[int32]float64) {
+	contributions := make(map[int32]float64)
 	nV := float64(len(u.OutLinks))
 	for _, v := range u.OutLinks {
 		contributions[v.ID] = u.Rank / nV

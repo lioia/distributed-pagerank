@@ -40,27 +40,31 @@ func main() {
 		Address: address,
 		Port:    int32(port),
 	}
+	s := grpc.NewServer()
 
 	// First Node Url
 	firstUrl := fmt.Sprintf("%s:%d", firstAddress, firstPort)
 
 	// Client towards first node
-	clientInfo, err := lib.ClientCall(firstUrl)
+	clientInfo, err := lib.MasterClientCall(firstUrl)
 	if err != nil {
 		panic(err)
 	}
 
 	// Check whether the first node is present
-	_, err = clientInfo.Client.HealthCheck(clientInfo.Context, nil)
+	_, err = clientInfo.Client.HealthCheck(clientInfo.Ctx, nil)
 	if err != nil {
 		// There is no node at the address
 		// This node is the first node of the network
 		fmt.Printf("No node found at %s. Running at %s:%d\n", firstUrl, address, firstPort)
 		// TODO: do something
 		baseNode.Port = int32(firstPort)
-		node = &Layer1Node{
+		node = &MasterNode{
 			BaseNode: baseNode,
 		}
+		lib.RegisterMasterNodeServer(s, &MasterNodeServerImpl{
+			Node: (node).(*MasterNode),
+		})
 	} else {
 		// There is a node in the network
 		// Contacting the first node to get the role
@@ -68,7 +72,7 @@ func main() {
 			Address: address,
 			Port:    int32(port),
 		}
-		info, err := clientInfo.Client.GetInfo(clientInfo.Context, &selfConnInfo)
+		info, err := clientInfo.Client.GetInfo(clientInfo.Ctx, &selfConnInfo)
 		if err != nil {
 			panic(err)
 		}
@@ -82,8 +86,14 @@ func main() {
 					Port:    int32(firstPort),
 				},
 			}
+			lib.RegisterLayer1NodeServer(s, &Layer1NodeServerImpl{
+				Node: (node).(*Layer1Node),
+			})
 		} else if layer == 2 {
 			node = &Layer2Node{BaseNode: baseNode}
+			lib.RegisterLayer2NodeServer(s, &Layer2NodeServerImpl{
+				Node: (node).(*Layer2Node),
+			})
 		}
 		err = node.Init(info)
 		// FIXME: error handling
@@ -91,15 +101,13 @@ func main() {
 			panic(err)
 		}
 	}
-	clientInfo.CancelFunction()
-	clientInfo.ClientConnection.Close()
+	clientInfo.CancelFunc()
+	clientInfo.Conn.Close()
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	s := grpc.NewServer()
-	lib.RegisterNodeServer(s, &NodeServerImpl{Node: &node})
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)

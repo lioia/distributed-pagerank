@@ -4,11 +4,22 @@ option go_package = "github.com/lioia/distributed-pagerank/lib";
 
 package lib;
 
-service Node {
+service MasterNode {
+  // TODO: messages should contains state update
   rpc HealthCheck(Empty) returns (Empty) {}
   rpc GetInfo(ConnectionInfo) returns (Info) {}
+  rpc UploadGraph(GraphFile) returns (Ranks) {}
+}
+
+service Layer1Node {
+  // TODO: messages should contains state update
+  rpc HealthCheck(Empty) returns (Empty) {}
   rpc Announce(AnnounceMessage) returns (Empty) {}
-  rpc UploadGraph(GraphFile) returns (Empty) {}
+}
+
+service Layer2Node {
+  // TODO: messages should contains state update
+  rpc HealthCheck(Empty) returns (Empty) {}
 }
 
 message Empty {}
@@ -36,3 +47,15 @@ message AnnounceMessage {
 }
 
 message GraphFile { bytes contents = 1; }
+
+message Ranks {
+  repeated int32 ID = 1;     // array of Graph Node IDs
+  repeated double ranks = 2; // array of Graph Node rank
+}
+
+message GraphNode {
+  int32 ID = 1;                       // Node ID
+  map<int32, GraphNode> OutLinks = 2; // Nodes this node points to
+  double Rank = 3;                    // Current PageRank
+  double EValue = 4;                  // E probability vector for this node
+}

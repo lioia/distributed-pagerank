@@ -8,23 +8,10 @@ import (
 	"strings"
 )
 
-type Graph map[int]*GraphNode
-
-// Struct to _attach_ methods to
-// type Graph struct {
-//  map[int]*GraphNode
-// }
-
-type GraphNode struct {
-	ID       int                // Node identifier
-	OutLinks map[int]*GraphNode // this node points to
-	Rank     float64            // Current PageRank
-	EValue   float64            // E probability vector
-}
+type Graph map[int32]*GraphNode
 
 func (g *Graph) Print() {
-	for i := 0; i < len(*g); i++ {
-		node := (*g)[i]
+	for _, node := range *g {
 		fmt.Printf("Node %d with rank %.4f and OutLinks ", node.ID, node.Rank)
 		for _, v := range node.OutLinks {
 			fmt.Printf("%d ", v.ID)
@@ -59,13 +46,13 @@ func (g *Graph) LoadFromBytes(bytes []byte) error {
 		if (*g)[from] == nil {
 			(*g)[from] = &GraphNode{
 				ID:       from,
-				OutLinks: make(map[int]*GraphNode),
+				OutLinks: make(Graph),
 			}
 		}
 		if (*g)[to] == nil {
 			(*g)[to] = &GraphNode{
 				ID:       to,
-				OutLinks: make(map[int]*GraphNode),
+				OutLinks: make(Graph),
 			}
 		}
 		// Adding the outlink to the current node
@@ -89,7 +76,7 @@ func (g *Graph) LoadFromBytes(bytes []byte) error {
 	return nil
 }
 
-func convertLine(line string) (int, int, bool, error) {
+func convertLine(line string) (int32, int32, bool, error) {
 	// Skip comment lines
 	if strings.HasPrefix(line, "#") || strings.HasPrefix(line, "//") || line == "" {
 		return 0, 0, true, nil
@@ -98,13 +85,13 @@ func convertLine(line string) (int, int, bool, error) {
 	line = strings.Replace(line, " ", ",", 1)
 	// Split line in FromNode and ToNode
 	tokens := strings.Split(line, ",")
-	fromNode, err := strconv.Atoi(tokens[0])
+	from, err := strconv.Atoi(tokens[0])
 	if err != nil {
 		return 0, 0, false, fmt.Errorf("could not convert FromNode %s", tokens[0])
 	}
-	toNode, err := strconv.Atoi(tokens[1])
+	to, err := strconv.Atoi(tokens[1])
 	if err != nil {
 		return 0, 0, false, fmt.Errorf("could not convert ToNode %s", tokens[1])
 	}
-	return fromNode, toNode, false, nil
+	return int32(from), int32(to), false, nil
 }
