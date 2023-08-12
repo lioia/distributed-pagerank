@@ -8,6 +8,7 @@ service Node {
   rpc HealthCheck(Empty) returns (Empty) {}
   rpc GetInfo(ConnectionInfo) returns (Info) {}
   rpc Announce(AnnounceMessage) returns (Empty) {}
+  rpc UploadGraph(GraphFile) returns (Empty) {}
 }
 
 message Empty {}
@@ -33,3 +34,5 @@ message AnnounceMessage {
   ConnectionInfo connection = 1; // Join node connection info
   int32 layerNumber = 2;         // Join node layer number
 }
+
+message GraphFile { bytes contents = 1; }

@@ -8,21 +8,23 @@ import (
 	"strings"
 )
 
+type Graph map[int]*GraphNode
+
 // Struct to _attach_ methods to
-type Graph struct {
-	Nodes map[int]*GraphNode
-}
+// type Graph struct {
+//  map[int]*GraphNode
+// }
 
 type GraphNode struct {
 	ID       int                // Node identifier
-	OutLinks map[int]*GraphNode // Nodes this node points to
+	OutLinks map[int]*GraphNode // this node points to
 	Rank     float64            // Current PageRank
 	EValue   float64            // E probability vector
 }
 
 func (g *Graph) Print() {
-	for i := 0; i < len(g.Nodes); i++ {
-		node := g.Nodes[i]
+	for i := 0; i < len(*g); i++ {
+		node := (*g)[i]
 		fmt.Printf("Node %d with rank %.4f and OutLinks ", node.ID, node.Rank)
 		for _, v := range node.OutLinks {
 			fmt.Printf("%d ", v.ID)
@@ -32,12 +34,15 @@ func (g *Graph) Print() {
 }
 
 func (g *Graph) LoadFromFile(path string) error {
-	g.Nodes = make(map[int]*GraphNode)
-	// Read file
+	// Read bytes from file
 	bytes, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("could not open file %s", path)
 	}
+	return g.LoadFromBytes(bytes)
+}
+
+func (g *Graph) LoadFromBytes(bytes []byte) error {
 	// Split file contents in lines (based on newline delimiter)
 	lines := strings.Split(strings.ReplaceAll(string(bytes), "\r\n", "\n"), "\n")
 	for _, line := range lines {
@@ -51,35 +56,35 @@ func (g *Graph) LoadFromFile(path string) error {
 			continue
 		}
 		// First time encoutering this node, so it has to be created
-		if g.Nodes[from] == nil {
-			g.Nodes[from] = &GraphNode{
+		if (*g)[from] == nil {
+			(*g)[from] = &GraphNode{
 				ID:       from,
 				OutLinks: make(map[int]*GraphNode),
 			}
 		}
-		if g.Nodes[to] == nil {
-			g.Nodes[to] = &GraphNode{
+		if (*g)[to] == nil {
+			(*g)[to] = &GraphNode{
 				ID:       to,
 				OutLinks: make(map[int]*GraphNode),
 			}
 		}
 		// Adding the outlink to the current node
-		g.Nodes[from].OutLinks[to] = g.Nodes[to]
+		(*g)[from].OutLinks[to] = (*g)[to]
 	}
 
 	// Initialize ranks and e values
-	initialRank := 1.0 / float64(len(g.Nodes))
+	initialRank := 1.0 / float64(len(*g))
 	total := 0.0
-	for id := range g.Nodes {
+	for id := range *g {
 		probability := rand.Float64()
-		g.Nodes[id].EValue = probability
-		g.Nodes[id].Rank = initialRank
+		(*g)[id].EValue = probability
+		(*g)[id].Rank = initialRank
 		total += probability
 	}
 
 	// Normalize probability
-	for id := range g.Nodes {
-		g.Nodes[id].EValue /= total
+	for id := range *g {
+		(*g)[id].EValue /= total
 	}
 	return nil
 }
