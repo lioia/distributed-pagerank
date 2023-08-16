@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/lioia/distributed-pagerank/lib"
 )
@@ -15,7 +16,7 @@ func (s *MasterNodeServerImpl) HealthCheck(ctx context.Context, in *lib.Empty) (
 	return &lib.Empty{}, nil
 }
 
-func (s *MasterNodeServerImpl) GetInfo(ctx context.Context, in *lib.ConnectionInfo) (*lib.Info, error) {
+func (s *MasterNodeServerImpl) ProcessNewNode(ctx context.Context, in *lib.ConnectionInfo) (*lib.Info, error) {
 	var info lib.Info
 	// Dynamic Node Placement
 	info.LayerNumber = 1
@@ -51,16 +52,18 @@ func (s *MasterNodeServerImpl) GetInfo(ctx context.Context, in *lib.ConnectionIn
 		s.Node.NumberOfNodes[assigned] += 1
 	}
 	return &info, nil
-
 }
 
-func (s *MasterNodeServerImpl) UploadGraph(ctx context.Context, in *lib.GraphFile) (*lib.Ranks, error) {
+// Return ranks, nil if there is only the master node,
+// otherwise returns nil, nil to indicate that the request has been _accepted_
+func (s *MasterNodeServerImpl) ProcessGraph(ctx context.Context, in *lib.GraphUpload) (*lib.Ranks, error) {
 	var ranks *lib.Ranks
 	graph := make(lib.Graph)
 	if err := graph.LoadFromBytes(in.Contents); err != nil {
 		return ranks, err
 	}
 	// No other nodes in the network, compute everything by itself
+	// and returns the ranks to the client
 	if len(s.Node.Layer1s) == 0 {
 		// TODO: 0.85 and 0.0001 should be configurable variables
 		graph.SingleNodePageRank(0.85, 0.0001)
@@ -72,25 +75,34 @@ func (s *MasterNodeServerImpl) UploadGraph(ctx context.Context, in *lib.GraphFil
 		}
 		return ranks, nil
 	}
-	// s.Node.Graph = graph
-	// graphNodesPerNetworkNodes := len(graph) / len(s.Node.Layer1s)
-	// subGraphs := make([]lib.Graph, len(s.Node.Layer1s))
-	// index := 0
-	// for id, node := range graph {
-	// 	subGraphs[index/graphNodesPerNetworkNodes][id] = node
-	// 	index += 1
-	// }
-	// for i := 0; i < len(s.Node.Layer1s); i++ {
-	// 	layer1 := s.Node.Layer1s[i]
-	// 	subGraph := subGraphs[i]
-	// 	clientUrl := fmt.Sprintf("%s:%d", layer1.Address, layer1.Port)
-	// 	clientInfo, err := lib.ClientCall(clientUrl)
-	// 	// FIXME: error handling
-	// 	if err != nil {
-	// 		return ranks, err
-	// 	}
-	// 	// TODO: send
-	// }
+	// Save computation information
+	s.Node.Client = in.From // used to call client to send ranks
+	s.Node.Graph = graph
+	s.Node.Phase = Map // Map Phase
+	// # nodes to send to worker
+	graphNodesPerNetworkNodes := len(graph) / len(s.Node.Layer1s)
+	// Divide graph into multiple subgraphs
+	subGraphs := make([]lib.Graph, len(s.Node.Layer1s))
+	index := 0
+	for id, node := range graph {
+		subGraphs[index/graphNodesPerNetworkNodes][id] = node
+		index += 1
+	}
+	// For each Layer 1 node, send subgraph
+	for i := 0; i < len(s.Node.Layer1s); i++ {
+		layer1 := s.Node.Layer1s[i]
+		clientUrl := fmt.Sprintf("%s:%d", layer1.Address, layer1.Port)
+		clientInfo, err := lib.Layer1ClientCall(clientUrl)
+		// FIXME: error handling
+		if err != nil {
+			return ranks, err
+		}
+		subGraph := lib.SubGraph{Graph: subGraphs[i]}
+		_, err = clientInfo.Client.ReceiveGraph(clientInfo.Ctx, &subGraph)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-	return ranks, nil
+	return nil, nil
 }

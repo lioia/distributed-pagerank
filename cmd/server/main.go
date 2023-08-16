@@ -72,7 +72,7 @@ func main() {
 			Address: address,
 			Port:    int32(port),
 		}
-		info, err := clientInfo.Client.GetInfo(clientInfo.Ctx, &selfConnInfo)
+		info, err := clientInfo.Client.ProcessNewNode(clientInfo.Ctx, &selfConnInfo)
 		if err != nil {
 			panic(err)
 		}

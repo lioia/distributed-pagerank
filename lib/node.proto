@@ -7,19 +7,21 @@ package lib;
 service MasterNode {
   // TODO: messages should contains state update
   rpc HealthCheck(Empty) returns (Empty) {}
-  rpc GetInfo(ConnectionInfo) returns (Info) {}
-  rpc UploadGraph(GraphFile) returns (Ranks) {}
+  rpc ProcessNewNode(ConnectionInfo) returns (Info) {}
+  rpc ProcessGraph(GraphUpload) returns (Ranks) {}
 }
 
 service Layer1Node {
   // TODO: messages should contains state update
   rpc HealthCheck(Empty) returns (Empty) {}
   rpc Announce(AnnounceMessage) returns (Empty) {}
+  rpc ReceiveGraph(SubGraph) returns (Empty) {}
 }
 
 service Layer2Node {
   // TODO: messages should contains state update
   rpc HealthCheck(Empty) returns (Empty) {}
+  rpc ComputeMap(SubGraph) returns (MapContributions) {}
 }
 
 message Empty {}
@@ -32,13 +34,9 @@ message ConnectionInfo {
 message Info {
   int32 layerNumber = 1;
   // Layer 1 info
-  repeated ConnectionInfo layer1s = 2;
-  // repeated string layer1Addresses = 2; // list of layer 1 node address
-  // repeated int32 layer1Port = 3;       // list of layer 1 node port
+  repeated ConnectionInfo layer1s = 2; // Layer 1 nodes
   // Layer 2 info
-  optional ConnectionInfo assigned = 3;
-  // optional string assignedAddress = 4; // assigned layer 1 node address
-  // optional int32 assignedPort = 5;     // assigned layer 1 node port
+  optional ConnectionInfo assigned = 3; // Assigned Layer 1 Node
 }
 
 message AnnounceMessage {
@@ -46,11 +44,18 @@ message AnnounceMessage {
   int32 layerNumber = 2;         // Join node layer number
 }
 
-message GraphFile { bytes contents = 1; }
+message GraphUpload {
+  ConnectionInfo from = 1; // Client connection info
+  bytes contents = 2;      // Graph File contents
+}
 
 message Ranks {
   repeated int32 ID = 1;     // array of Graph Node IDs
   repeated double ranks = 2; // array of Graph Node rank
+}
+
+message SubGraph {
+  map<int32, GraphNode> Graph = 1; // Graph structure
 }
 
 message GraphNode {
@@ -58,4 +63,8 @@ message GraphNode {
   map<int32, GraphNode> OutLinks = 2; // Nodes this node points to
   double Rank = 3;                    // Current PageRank
   double EValue = 4;                  // E probability vector for this node
+}
+
+message MapContributions {
+  map<int32, double> Contribution = 1; // Map Contribution
 }

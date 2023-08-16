@@ -14,3 +14,15 @@ type Layer2NodeServerImpl struct {
 func (s *Layer2NodeServerImpl) HealthCheck(context.Context, *lib.Empty) (*lib.Empty, error) {
 	return &lib.Empty{}, nil
 }
+
+func (s *Layer2NodeServerImpl) ComputeMap(_ context.Context, in *lib.SubGraph) (*lib.MapContributions, error) {
+	message := &lib.MapContributions{}
+	for _, node := range in.Graph {
+		contributions := node.Map()
+		for id, v := range contributions {
+			message.Contribution[id] += v
+		}
+
+	}
+	return message, nil
+}
