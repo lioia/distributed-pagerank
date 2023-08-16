@@ -2,6 +2,7 @@ package lib
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"strconv"
@@ -9,6 +10,23 @@ import (
 )
 
 type Graph map[int32]*GraphNode
+
+func (u *GraphNode) Map() map[int32]float64 {
+	contributions := make(map[int32]float64)
+	nV := float64(len(u.OutLinks))
+	for _, v := range u.OutLinks {
+		contributions[v.ID] = u.Rank / nV
+	}
+	return contributions
+}
+
+func (u *GraphNode) Reduce(sum, dampingFactor float64) float64 {
+	oldRank := u.Rank
+	newRank := dampingFactor*sum + (1-dampingFactor)*u.EValue
+	diff := math.Abs(newRank - oldRank)
+	u.Rank = newRank
+	return diff
+}
 
 func (g *Graph) Print() {
 	for _, node := range *g {

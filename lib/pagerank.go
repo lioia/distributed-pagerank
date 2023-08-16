@@ -39,7 +39,7 @@ func (g *Graph) GoroutinesPageRank(dampingFactor, threshold float64) {
 		sum := make(map[int32]float64)
 		// Map
 		for _, u := range *g {
-			go mapper(u, contributionChannel)
+			go goroutineMap(u, contributionChannel)
 			contributions := <-contributionChannel
 			for id := range contributions {
 				sum[id] += contributions[id]
@@ -49,7 +49,7 @@ func (g *Graph) GoroutinesPageRank(dampingFactor, threshold float64) {
 		// Reduce
 		convergenceDiff := 0.0
 		for id, node := range *g {
-			go reducer(node, sum[id], dampingFactor, convergenceChannel)
+			go goroutineReduce(node, sum[id], dampingFactor, convergenceChannel)
 			convergenceDiff += <-convergenceChannel
 		}
 		if convergenceDiff < threshold {
@@ -59,20 +59,11 @@ func (g *Graph) GoroutinesPageRank(dampingFactor, threshold float64) {
 	}
 }
 
-func mapper(u *GraphNode, channel chan map[int32]float64) {
-	contributions := make(map[int32]float64)
-	nV := float64(len(u.OutLinks))
-	for _, v := range u.OutLinks {
-		contributions[v.ID] = u.Rank / nV
-	}
-	channel <- contributions
+func goroutineMap(u *GraphNode, channel chan map[int32]float64) {
+	channel <- u.Map()
 }
 
-func reducer(node *GraphNode, sum, dampingFactor float64,
-	convergenceDiff chan float64) {
-	oldRank := node.Rank
-	newRank := dampingFactor*sum + (1-dampingFactor)*node.EValue
-	diff := math.Abs(newRank - oldRank)
-	node.Rank = newRank
-	convergenceDiff <- diff
+func goroutineReduce(node *GraphNode, sum, dampingFactor float64,
+	diffChannel chan float64) {
+	diffChannel <- node.Reduce(sum, dampingFactor)
 }
