@@ -122,6 +122,86 @@ func (n *Layer1Node) Collect() error {
 	return nil
 }
 
+func (n *Layer1Node) Reduce() error {
+	n.ReduceData = make(map[int32]float64)
+	// No layer 2 nodes, computing reduce by itself and switch to Collect phase
+	if len(n.Layer2s) == 0 {
+		for id, node := range n.Graph {
+			v := n.DampingFactor*n.MapData[id] + (1-n.DampingFactor)*node.EValue
+			n.ReduceData[id] = v
+		}
+		n.Phase = Convergence
+		return nil
+	}
+	// # of layer 2 nodes changed -> recalculating the subgraphs
+	if len(n.SubGraphs) != len(n.Layer2s) {
+		n.SubGraphs = make([]lib.Graph, len(n.Layer2s))
+		// # nodes to send to layer 2 network node
+		graphNodesPerNetworkNodes := len(n.Graph) / len(n.Layer2s)
+		// Divide graph into multiple subgraphs
+		index := 0
+		for id, node := range n.Graph {
+			n.SubGraphs[index/graphNodesPerNetworkNodes][id] = node
+			index += 1
+		}
+	}
+	// Send subgraph to layer 2 node
+	var wg sync.WaitGroup
+	errored := make(chan int) // -1: no errors; >= 0 i-th layer 2 error
+	for i, layer2 := range n.Layer2s {
+		wg.Add(1)
+		go func(i int, layer2 *lib.ConnectionInfo) {
+			defer wg.Done()
+			var nodes []*lib.GraphNode
+			var sums []float64
+			for i, v := range n.SubGraphs[i] {
+				nodes = append(nodes, v)
+				sums = append(sums, n.MapData[i])
+			}
+			clientUrl := fmt.Sprintf("%s:%d", layer2.Address, layer2.Port)
+			clientInfo, err := lib.Layer2ClientCall(clientUrl)
+			// FIXME: error handling
+			if err != nil {
+				errored <- i
+				return
+			}
+			sum := &lib.Sums{
+				Nodes:         nodes,
+				Sums:          sums,
+				DampingFactor: n.DampingFactor,
+			}
+			reduce, err := clientInfo.Client.ComputeReduce(clientInfo.Ctx, sum)
+			// FIXME: error handling
+			if err != nil {
+				errored <- i
+				return
+			}
+			for _, v := range reduce.Ranks {
+				n.ReduceData[v.ID] = v.Rank
+			}
+			n.Counter += 1
+			errored <- -1
+		}(i, layer2)
+	}
+	for i := range errored {
+		// i-th layer 2 node errored
+		if i != -1 {
+			// Remove from network (assuming crash)
+			n.Layer2s = append(n.Layer2s[:i], n.Layer2s[i+1:]...)
+			// Calculating Reduce in this node
+			for id, node := range n.Graph {
+				v := n.DampingFactor*n.MapData[id] + (1-n.DampingFactor)*node.EValue
+				n.ReduceData[id] = v
+			}
+		}
+	}
+	wg.Wait()
+	// Map phase completed, go to Collect phase
+	n.Counter = 0
+	n.Phase = Convergence
+	return nil
+}
+
 type Layer1NodeServerImpl struct {
 	Node *Layer1Node
 	lib.UnimplementedLayer1NodeServer

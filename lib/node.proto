@@ -23,7 +23,7 @@ service Layer2Node {
   // TODO: messages should contains state update
   rpc HealthCheck(Empty) returns (Empty) {}
   rpc ComputeMap(SubGraph) returns (MapContributions) {}
-  rpc ComputeReduce(Sum) returns (Rank) {}
+  rpc ComputeReduce(Sums) returns (Ranks) {}
 }
 
 message Empty {}
@@ -73,8 +73,8 @@ message MapContributions {
   map<int32, double> Contribution = 1; // Map Contribution
 }
 
-message Sum {
-  GraphNode Node = 1;
-  double Sum = 2;
+message Sums {
+  repeated GraphNode Nodes = 1;
+  repeated double Sums = 2;
   double DampingFactor = 3;
 }

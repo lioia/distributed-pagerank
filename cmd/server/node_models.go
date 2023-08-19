@@ -23,11 +23,12 @@ const (
 )
 
 type BaseNode struct {
-	Layer   int32
-	Address string
-	Port    int32
-	Graph   lib.Graph
-	Phase   Phase
+	Layer         int32
+	Address       string
+	Port          int32
+	Graph         lib.Graph
+	Phase         Phase
+	DampingFactor float64
 }
 
 // Implemented in master_node.go
@@ -40,13 +41,14 @@ type MasterNode struct {
 
 // Implemented in layer1_node.go
 type Layer1Node struct {
-	BaseNode                        // Base node information
-	FirstNode *lib.ConnectionInfo   // Connection info of first node
-	Layer1s   []*lib.ConnectionInfo // Connection info for other first layer nodes
-	Layer2s   []*lib.ConnectionInfo // Connection info for second layer nodes
-	SubGraphs []lib.Graph           // Graph associated with layer 2 node
-	MapData   map[int32]float64     // Partial sums derived from map phase
-	Counter   int32                 // Number of responses received
+	BaseNode                         // Base node information
+	FirstNode  *lib.ConnectionInfo   // Connection info of first node
+	Layer1s    []*lib.ConnectionInfo // Connection info for other first layer nodes
+	Layer2s    []*lib.ConnectionInfo // Connection info for second layer nodes
+	SubGraphs  []lib.Graph           // Graph associated with layer 2 node
+	Counter    int32                 // Number of responses received
+	MapData    map[int32]float64     // Partial sums derived from map phase
+	ReduceData map[int32]float64     // Updated PageRank
 }
 
 // Implemented in layer2_node.go

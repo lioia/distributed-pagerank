@@ -28,12 +28,16 @@ func (s *Layer2NodeServerImpl) ComputeMap(_ context.Context, in *lib.SubGraph) (
 	return message, nil
 }
 
-func (s *Layer2NodeServerImpl) ComputeReduce(_ context.Context, in *lib.Sum) (*lib.Rank, error) {
-	rank := &lib.Rank{
-		ID:   in.Node.ID,
-		Rank: in.DampingFactor*in.Sum + (1-in.DampingFactor)*in.Node.EValue,
+func (s *Layer2NodeServerImpl) ComputeReduce(_ context.Context, in *lib.Sums) (*lib.Ranks, error) {
+	var ranks []*lib.Rank
+	for i, v := range in.Nodes {
+		rank := &lib.Rank{
+			ID:   v.ID,
+			Rank: in.DampingFactor*in.Sums[i] + (1-in.DampingFactor)*v.EValue,
+		}
+		ranks = append(ranks, rank)
 	}
-	return rank, nil
+	return &lib.Ranks{Ranks: ranks}, nil
 }
 
 func (n *Layer2Node) Init(info *lib.Info) error {
