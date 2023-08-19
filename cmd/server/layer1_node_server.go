@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/lioia/distributed-pagerank/lib"
 )

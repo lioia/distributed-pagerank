@@ -133,10 +133,18 @@ func (n *Layer1Node) Map() {
 			errored <- -1
 		}(i, layer2)
 	}
-	// TODO: if no errors: go to collect phase
-	for err := range errored {
-		if err != -1 {
-			// TODO: layer2[i] errored, do something
+	for i := range errored {
+		// i-th layer 2 node errored
+		if i != -1 {
+			// Remove from network (assuming crash)
+			n.Layer2s = append(n.Layer2s[:i], n.Layer2s[i+1:]...)
+			// Calculating Map in this node
+			for _, node := range n.SubGraphs[i] {
+				contributions := node.Map()
+				for id, v := range contributions {
+					n.MapData[id] += v
+				}
+			}
 		}
 	}
 	wg.Wait()
