@@ -7,6 +7,15 @@ import (
 	"github.com/lioia/distributed-pagerank/lib"
 )
 
+func (_ *MasterNode) Init(*lib.Info) error {
+	return nil
+}
+
+func (n *MasterNode) Update() error {
+	// TODO: implement what the master node has to do
+	return nil
+}
+
 type MasterNodeServerImpl struct {
 	Node *MasterNode
 	lib.UnimplementedMasterNodeServer
