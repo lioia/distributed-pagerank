@@ -26,3 +26,11 @@ func (s *Layer2NodeServerImpl) ComputeMap(_ context.Context, in *lib.SubGraph) (
 	}
 	return message, nil
 }
+
+func (s *Layer2NodeServerImpl) ComputeReduce(_ context.Context, in *lib.Sum) (*lib.Rank, error) {
+	rank := &lib.Rank{
+		ID:   in.Node.ID,
+		Rank: in.DampingFactor*in.Sum + (1-in.DampingFactor)*in.Node.EValue,
+	}
+	return rank, nil
+}
