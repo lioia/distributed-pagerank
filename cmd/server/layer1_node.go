@@ -196,7 +196,7 @@ func (n *Layer1Node) Reduce() error {
 		}
 	}
 	wg.Wait()
-	// Map phase completed, go to Collect phase
+	// Reduce phase completed, go to Convergence phase
 	n.Counter = 0
 	n.Phase = Convergence
 	return nil
