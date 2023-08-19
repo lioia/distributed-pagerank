@@ -37,14 +37,19 @@ func (n *Layer1Node) Init(info *lib.Info) error {
 }
 
 func (n *Layer1Node) Update() error {
-	// TODO: implement what the layer 1 node has to do
+	var err error
 	switch n.Phase {
 	// Send data to layer 2 nodes and wait for results (in goroutines)
 	case Map:
 		n.Map()
-		// TODO: case Collect: Send data to layer 1 nodes and wait for their data
+	// Send data to layer 1 nodes and wait for their data
+	case Collect:
+		err = n.Collect()
+		if err != nil && n.Counter == int32(len(n.Layer1s)) {
+			n.Phase = Reduce
+		}
 	}
-	return nil
+	return err
 }
 
 func (n *Layer1Node) Map() {
@@ -98,6 +103,25 @@ func (n *Layer1Node) Map() {
 	n.Phase = Collect
 }
 
+func (n *Layer1Node) Collect() error {
+	// For each layer 1 node
+	for _, layer1 := range n.Layer1s {
+		clientUrl := fmt.Sprintf("%s:%d", layer1.Address, layer1.Port)
+		clientInfo, err := lib.Layer1ClientCall(clientUrl)
+		// FIXME: error handling
+		if err != nil {
+			return err
+		}
+		contrib := &lib.MapContributions{Contribution: n.MapData}
+		_, err = clientInfo.Client.SyncMap(clientInfo.Ctx, contrib)
+		// FIXME: error handling
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type Layer1NodeServerImpl struct {
 	Node *Layer1Node
 	lib.UnimplementedLayer1NodeServer
@@ -145,5 +169,14 @@ func (s *Layer1NodeServerImpl) ReceiveGraph(_ context.Context, in *lib.SubGraph)
 		index += 1
 	}
 
+	return empty, nil
+}
+
+func (s *Layer1NodeServerImpl) SyncMap(_ context.Context, in *lib.MapContributions) (*lib.Empty, error) {
+	empty := &lib.Empty{}
+	for id, v := range in.GetContribution() {
+		s.Node.MapData[id] += v
+	}
+	s.Node.Counter += 1
 	return empty, nil
 }

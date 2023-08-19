@@ -14,12 +14,12 @@ type Node interface {
 type Phase int32
 
 const (
-	Wait            Phase = iota // No graph uploaded, node wait for instruction
-	Map                          // Map Computation
-	Collect                      // Layer 1 nodes groups and sync map phase results
-	Reduce                       // Reduce Computation
-	Convergence                  // Layer 1 nodes decices what to do next
-	Synchronization              // Convergence failed, updating ranks from other nodes
+	Wait        Phase = iota // No graph uploaded, node wait for instruction
+	Map                      // Map Computation
+	Collect                  // Layer 1 nodes groups and sync map phase results
+	Reduce                   // Reduce Computation
+	Convergence              // Layer 1 nodes decices what to do next
+	Sync                     // Convergence failed, updating ranks from other nodes
 )
 
 type BaseNode struct {

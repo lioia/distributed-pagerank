@@ -16,6 +16,7 @@ service Layer1Node {
   rpc HealthCheck(Empty) returns (Empty) {}
   rpc Announce(AnnounceMessage) returns (Empty) {}
   rpc ReceiveGraph(SubGraph) returns (Empty) {}
+  rpc SyncMap(MapContributions) returns (Empty) {}
 }
 
 service Layer2Node {
