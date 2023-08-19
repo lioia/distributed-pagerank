@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
 	"github.com/lioia/distributed-pagerank/lib"
 	"google.golang.org/grpc"
@@ -109,7 +110,22 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	log.Printf("server listening at %v", lis.Addr())
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+	// Running gRPC server in a goroutine
+	go func() {
+		if err := s.Serve(lis); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
+	}()
+	// Node update loop
+	go func() {
+		for {
+			if err = node.Update(); err != nil {
+				log.Fatalf("there was an error while running the node: %v\n", err)
+				break
+			}
+			// Wait for 500 msec
+			// TODO: 500 should be a configurable variable
+			time.Sleep(500 * time.Millisecond)
+		}
+	}()
 }

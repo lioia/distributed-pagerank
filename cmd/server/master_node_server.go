@@ -69,8 +69,7 @@ func (s *MasterNodeServerImpl) ProcessGraph(ctx context.Context, in *lib.GraphUp
 		graph.SingleNodePageRank(0.85, 0.0001)
 		i := 0
 		for id, node := range graph {
-			ranks.ID[i] = id
-			ranks.Ranks[i] = node.Rank
+			ranks.Ranks[i] = &lib.Rank{ID: id, Rank: node.Rank}
 			i += 1
 		}
 		return ranks, nil
@@ -99,6 +98,7 @@ func (s *MasterNodeServerImpl) ProcessGraph(ctx context.Context, in *lib.GraphUp
 		}
 		subGraph := lib.SubGraph{Graph: subGraphs[i]}
 		_, err = clientInfo.Client.ReceiveGraph(clientInfo.Ctx, &subGraph)
+		// FIXME: error handling
 		if err != nil {
 			return nil, err
 		}

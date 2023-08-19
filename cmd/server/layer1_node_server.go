@@ -54,27 +54,6 @@ func (s *Layer1NodeServerImpl) ReceiveGraph(_ context.Context, in *lib.SubGraph)
 		s.Node.SubGraphs[index/graphNodesPerNetworkNodes][id] = node
 		index += 1
 	}
-	// For each layer 2 node, send subgraph
-	// TODO: switch to main function and goroutines
-	for i := 0; i < len(s.Node.Layer2s); i++ {
-		layer2 := s.Node.Layer2s[i]
-		subGraph := s.Node.SubGraphs[i]
-		clientUrl := fmt.Sprintf("%s:%d", layer2.Address, layer2.Port)
-		clientInfo, err := lib.Layer2ClientCall(clientUrl)
-		// FIXME: error handling
-		if err != nil {
-			return nil, err
-		}
-		message := lib.SubGraph{Graph: subGraph}
-		contributions, err := clientInfo.Client.ComputeMap(clientInfo.Ctx, &message)
-		// FIXME: error handling
-		if err != nil {
-			return nil, err
-		}
-		for id, v := range contributions.GetContribution() {
-			s.Node.MapData[id] += v
-		}
-	}
 
 	return empty, nil
 }

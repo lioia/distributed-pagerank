@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/lioia/distributed-pagerank/lib"
 )
 
 type Node interface {
 	Init(info *lib.Info) error
+	Update() error
 }
 
 // Phase can be treated as an enum
@@ -57,6 +59,11 @@ func (_ *MasterNode) Init(*lib.Info) error {
 	return nil
 }
 
+func (n *MasterNode) Update() error {
+	// TODO: implement what the master node has to do
+	return nil
+}
+
 func (n *Layer1Node) Init(info *lib.Info) error {
 	for _, v := range info.GetLayer1S() {
 		// Save information on the other layer 1 nodes
@@ -84,6 +91,60 @@ func (n *Layer1Node) Init(info *lib.Info) error {
 	return nil
 }
 
+func (n *Layer1Node) Update() error {
+	// TODO: implement what the layer 1 node has to do
+	switch n.Phase {
+	// Send data to layer 2 nodes and wait for results (in goroutines)
+	case Map:
+		n.Map()
+		// TODO: case Collect: Send data to layer 1 nodes and wait for their data
+	}
+	return nil
+}
+
+func (n *Layer1Node) Map() {
+	var wg sync.WaitGroup
+	errored := make(chan int) // -1: no errors; >= 0 i-th layer 2 error
+	// For each layer 2 node
+	for i, layer2 := range n.Layer2s {
+		wg.Add(1)
+		// Create goroutine, send subgraph and wait for results
+		go func(i int, layer2 *lib.ConnectionInfo) {
+			defer wg.Done()
+			subGraph := n.SubGraphs[i]
+			clientUrl := fmt.Sprintf("%s:%d", layer2.Address, layer2.Port)
+			clientInfo, err := lib.Layer2ClientCall(clientUrl)
+			// FIXME: error handling
+			if err != nil {
+				errored <- i
+				return
+			}
+			message := lib.SubGraph{Graph: subGraph}
+			maps, err := clientInfo.Client.ComputeMap(clientInfo.Ctx, &message)
+			// FIXME: error handling
+			if err != nil {
+				errored <- i
+				return
+			}
+			for id, v := range maps.GetContribution() {
+				n.MapData[id] += v
+			}
+			n.Counter += 1
+			errored <- -1
+		}(i, layer2)
+	}
+	// TODO: if no errors: go to collect phase
+	for err := range errored {
+		if err != -1 {
+			// TODO: layer2[i] errored, do something
+		}
+	}
+	wg.Wait()
+	// Map phase completed, go to Collect phase
+	n.Counter = 0
+	n.Phase = Collect
+}
+
 func (n *Layer2Node) Init(info *lib.Info) error {
 	n.Layer1 = info.GetAssigned()
 	layer1Url := fmt.Sprintf("%s:%d", n.Layer1.Address, n.Layer1.Port)
@@ -104,5 +165,10 @@ func (n *Layer2Node) Init(info *lib.Info) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (n *Layer2Node) Update() error {
+	// TODO: implement what the layer2 node has to do
 	return nil
 }

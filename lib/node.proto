@@ -22,6 +22,7 @@ service Layer2Node {
   // TODO: messages should contains state update
   rpc HealthCheck(Empty) returns (Empty) {}
   rpc ComputeMap(SubGraph) returns (MapContributions) {}
+  rpc ComputeReduce(Sum) returns (Rank) {}
 }
 
 message Empty {}
@@ -49,10 +50,12 @@ message GraphUpload {
   bytes contents = 2;      // Graph File contents
 }
 
-message Ranks {
-  repeated int32 ID = 1;     // array of Graph Node IDs
-  repeated double ranks = 2; // array of Graph Node rank
+message Rank {
+  int32 ID = 1;    // Graph Node ID
+  double rank = 2; // Graph Node Rank
 }
+
+message Ranks { repeated Rank Ranks = 1; }
 
 message SubGraph {
   map<int32, GraphNode> Graph = 1; // Graph structure
@@ -67,4 +70,10 @@ message GraphNode {
 
 message MapContributions {
   map<int32, double> Contribution = 1; // Map Contribution
+}
+
+message Sum {
+  GraphNode Node = 1;
+  double Sum = 2;
+  double DampingFactor = 3;
 }
