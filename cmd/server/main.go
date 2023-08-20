@@ -62,6 +62,7 @@ func main() {
 		baseNode.Port = int32(firstPort)
 		node = &MasterNode{
 			BaseNode: baseNode,
+			NewRanks: make(map[int32]float64),
 		}
 		lib.RegisterMasterNodeServer(s, &MasterNodeServerImpl{
 			Node: (node).(*MasterNode),
@@ -82,7 +83,7 @@ func main() {
 		if layer == 1 {
 			node = &Layer1Node{
 				BaseNode: baseNode,
-				FirstNode: &lib.ConnectionInfo{
+				MasterNode: &lib.ConnectionInfo{
 					Address: firstAddress,
 					Port:    int32(firstPort),
 				},

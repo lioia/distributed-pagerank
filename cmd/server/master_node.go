@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"math"
 
 	"github.com/lioia/distributed-pagerank/lib"
 )
@@ -12,8 +14,90 @@ func (_ *MasterNode) Init(*lib.Info) error {
 }
 
 func (n *MasterNode) Update() error {
-	// TODO: implement what the master node has to do
+	var err error
+	switch n.Phase {
+	case Map:
+		err = n.Map()
+	case Convergence:
+		err = n.Convergence()
+	}
+	return err
+}
+
+func (n *MasterNode) Map() error {
+	// No other nodes in the network, compute everything by itself
+	// and returns the ranks to the client
+	if len(n.Layer1s) == 0 {
+		n.Graph.SingleNodePageRank(n.DampingFactor, n.Threshold)
+		return n.SendDataToClient()
+	}
+	// # nodes to send to worker
+	graphNodesPerNetworkNodes := len(n.Graph) / len(n.Layer1s)
+	// Divide graph into multiple subgraphs
+	subGraphs := make([]lib.Graph, len(n.Layer1s))
+	index := 0
+	for id, node := range n.Graph {
+		subGraphs[index/graphNodesPerNetworkNodes][id] = node
+		index += 1
+	}
+	// For each Layer 1 node, send subgraph
+	for i := 0; i < len(n.Layer1s); i++ {
+		layer1 := n.Layer1s[i]
+		clientUrl := fmt.Sprintf("%s:%d", layer1.Address, layer1.Port)
+		clientInfo, err := lib.Layer1ClientCall(clientUrl)
+		// FIXME: error handling
+		if err != nil {
+			return err
+		}
+		subGraph := lib.SubGraph{Graph: subGraphs[i]}
+		_, err = clientInfo.Client.ReceiveGraph(clientInfo.Ctx, &subGraph)
+		// FIXME: error handling
+		if err != nil {
+			return err
+		}
+	}
+	n.Phase = Convergence
 	return nil
+}
+
+func (n *MasterNode) Convergence() error {
+	if int(n.Counter) == len(n.Layer1s) {
+		convergence := 0.0
+		for id, newRank := range n.NewRanks {
+			oldRank := n.Graph[id].Rank
+			convergence += math.Abs(newRank - oldRank)
+			// After calculating the convergence value, it can be safely updated
+			n.Graph[id].Rank = newRank
+		}
+		// Does not converge -> iterate
+		if convergence > n.Threshold {
+			// Start new computation with updated pagerank values
+			n.Phase = Map
+			return nil
+		} else {
+			n.SendDataToClient()
+			// TODO: converged, send data to client
+			n.Phase = Wait
+		}
+		n.Counter = 0
+	}
+	return nil
+}
+
+func (n *MasterNode) SendDataToClient() error {
+	// clientUrl := fmt.Sprintf("%s:%d", n.Client.Address, n.Client.Port)
+	// clientInfo, err := lib.Layer1ClientCall(clientUrl)
+	// // FIXME: error handling
+	// if err != nil {
+	// 	return err
+	// }
+	// contrib := &lib.MapIntDouble{Map: n.MapData}
+	// _, err = clientInfo.Client.SyncMap(clientInfo.Ctx, contrib)
+	// // FIXME: error handling
+	// if err != nil {
+	// 	return err
+	// }
+	return errors.New("unimplemented")
 }
 
 type MasterNodeServerImpl struct {
@@ -65,53 +149,22 @@ func (s *MasterNodeServerImpl) ProcessNewNode(ctx context.Context, in *lib.Conne
 
 // Return ranks, nil if there is only the master node,
 // otherwise returns nil, nil to indicate that the request has been _accepted_
-func (s *MasterNodeServerImpl) ProcessGraph(ctx context.Context, in *lib.GraphUpload) (*lib.Ranks, error) {
-	var ranks *lib.Ranks
+func (s *MasterNodeServerImpl) ProcessGraph(ctx context.Context, in *lib.GraphUpload) (*lib.Empty, error) {
+	var empty *lib.Empty
 	graph := make(lib.Graph)
 	if err := graph.LoadFromBytes(in.Contents); err != nil {
-		return ranks, err
+		return nil, err
 	}
-	// No other nodes in the network, compute everything by itself
-	// and returns the ranks to the client
-	if len(s.Node.Layer1s) == 0 {
-		// TODO: 0.85 and 0.0001 should be configurable variables
-		graph.SingleNodePageRank(0.85, 0.0001)
-		i := 0
-		for id, node := range graph {
-			ranks.Ranks[i] = &lib.Rank{ID: id, Rank: node.Rank}
-			i += 1
-		}
-		return ranks, nil
-	}
-	// Save computation information
-	s.Node.Client = in.From // used to call client to send ranks
 	s.Node.Graph = graph
-	s.Node.Phase = Map // Map Phase
-	// # nodes to send to worker
-	graphNodesPerNetworkNodes := len(graph) / len(s.Node.Layer1s)
-	// Divide graph into multiple subgraphs
-	subGraphs := make([]lib.Graph, len(s.Node.Layer1s))
-	index := 0
-	for id, node := range graph {
-		subGraphs[index/graphNodesPerNetworkNodes][id] = node
-		index += 1
-	}
-	// For each Layer 1 node, send subgraph
-	for i := 0; i < len(s.Node.Layer1s); i++ {
-		layer1 := s.Node.Layer1s[i]
-		clientUrl := fmt.Sprintf("%s:%d", layer1.Address, layer1.Port)
-		clientInfo, err := lib.Layer1ClientCall(clientUrl)
-		// FIXME: error handling
-		if err != nil {
-			return ranks, err
-		}
-		subGraph := lib.SubGraph{Graph: subGraphs[i]}
-		_, err = clientInfo.Client.ReceiveGraph(clientInfo.Ctx, &subGraph)
-		// FIXME: error handling
-		if err != nil {
-			return nil, err
-		}
-	}
+	s.Node.Client = in.From
+	s.Node.Phase = Map
 
-	return nil, nil
+	return empty, nil
+}
+
+func (s *MasterNodeServerImpl) SyncRanks(_ context.Context, in *lib.MapIntDouble) (*lib.Empty, error) {
+	empty := &lib.Empty{}
+	s.Node.Phase = Convergence
+	s.Node.NewRanks = in.Map
+	return empty, nil
 }

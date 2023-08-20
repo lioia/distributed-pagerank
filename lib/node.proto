@@ -8,7 +8,8 @@ service MasterNode {
   // TODO: messages should contains state update
   rpc HealthCheck(Empty) returns (Empty) {}
   rpc ProcessNewNode(ConnectionInfo) returns (Info) {}
-  rpc ProcessGraph(GraphUpload) returns (Ranks) {}
+  rpc ProcessGraph(GraphUpload) returns (Empty) {}
+  rpc SyncRanks(MapIntDouble) returns (Empty) {}
 }
 
 service Layer1Node {
@@ -16,14 +17,14 @@ service Layer1Node {
   rpc HealthCheck(Empty) returns (Empty) {}
   rpc Announce(AnnounceMessage) returns (Empty) {}
   rpc ReceiveGraph(SubGraph) returns (Empty) {}
-  rpc SyncMap(MapContributions) returns (Empty) {}
+  rpc SyncMap(MapIntDouble) returns (Empty) {}
 }
 
 service Layer2Node {
   // TODO: messages should contains state update
   rpc HealthCheck(Empty) returns (Empty) {}
-  rpc ComputeMap(SubGraph) returns (MapContributions) {}
-  rpc ComputeReduce(Sums) returns (Ranks) {}
+  rpc ComputeMap(SubGraph) returns (MapIntDouble) {}
+  rpc ComputeReduce(Sums) returns (MapIntDouble) {}
 }
 
 message Empty {}
@@ -51,13 +52,6 @@ message GraphUpload {
   bytes contents = 2;      // Graph File contents
 }
 
-message Rank {
-  int32 ID = 1;    // Graph Node ID
-  double rank = 2; // Graph Node Rank
-}
-
-message Ranks { repeated Rank Ranks = 1; }
-
 message SubGraph {
   map<int32, GraphNode> Graph = 1; // Graph structure
 }
@@ -69,9 +63,7 @@ message GraphNode {
   double EValue = 4;                  // E probability vector for this node
 }
 
-message MapContributions {
-  map<int32, double> Contribution = 1; // Map Contribution
-}
+message MapIntDouble { map<int32, double> Map = 1; }
 
 message Sums {
   repeated GraphNode Nodes = 1;

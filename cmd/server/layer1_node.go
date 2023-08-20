@@ -45,9 +45,11 @@ func (n *Layer1Node) Update() error {
 	// Send data to layer 1 nodes and wait for their data
 	case Collect:
 		err = n.Collect()
-		if err != nil && n.Counter == int32(len(n.Layer1s)) {
+		if err != nil && int(n.Counter) == len(n.Layer1s) {
 			n.Phase = Reduce
 		}
+	case Convergence:
+		n.Convergence()
 	}
 	return err
 }
@@ -76,7 +78,7 @@ func (n *Layer1Node) Map() {
 				errored <- i
 				return
 			}
-			for id, v := range maps.GetContribution() {
+			for id, v := range maps.Map {
 				n.MapData[id] += v
 			}
 			n.Counter += 1
@@ -112,7 +114,7 @@ func (n *Layer1Node) Collect() error {
 		if err != nil {
 			return err
 		}
-		contrib := &lib.MapContributions{Contribution: n.MapData}
+		contrib := &lib.MapIntDouble{Map: n.MapData}
 		_, err = clientInfo.Client.SyncMap(clientInfo.Ctx, contrib)
 		// FIXME: error handling
 		if err != nil {
@@ -176,9 +178,7 @@ func (n *Layer1Node) Reduce() error {
 				errored <- i
 				return
 			}
-			for _, v := range reduce.Ranks {
-				n.ReduceData[v.ID] = v.Rank
-			}
+			n.ReduceData = reduce.Map
 			n.Counter += 1
 			errored <- -1
 		}(i, layer2)
@@ -199,6 +199,20 @@ func (n *Layer1Node) Reduce() error {
 	// Reduce phase completed, go to Convergence phase
 	n.Counter = 0
 	n.Phase = Convergence
+	return nil
+}
+
+func (n *Layer1Node) Convergence() error {
+	// ranks := &lib.Ranks{}
+	// for id, node := range n.ReduceData {
+	//
+	// }
+	// clientUrl := fmt.Sprintf("%s:%d", n.MasterNode.Address, n.MasterNode.Port)
+	// clientInfo, err := lib.MasterClientCall(clientUrl)
+	// // FIXME: error handling
+	// if err != nil {
+	// 	return err
+	// }
 	return nil
 }
 
@@ -252,9 +266,9 @@ func (s *Layer1NodeServerImpl) ReceiveGraph(_ context.Context, in *lib.SubGraph)
 	return empty, nil
 }
 
-func (s *Layer1NodeServerImpl) SyncMap(_ context.Context, in *lib.MapContributions) (*lib.Empty, error) {
+func (s *Layer1NodeServerImpl) SyncMap(_ context.Context, in *lib.MapIntDouble) (*lib.Empty, error) {
 	empty := &lib.Empty{}
-	for id, v := range in.GetContribution() {
+	for id, v := range in.Map {
 		s.Node.MapData[id] += v
 	}
 	s.Node.Counter += 1

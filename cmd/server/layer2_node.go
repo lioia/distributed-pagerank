@@ -16,28 +16,24 @@ func (s *Layer2NodeServerImpl) HealthCheck(context.Context, *lib.Empty) (*lib.Em
 	return &lib.Empty{}, nil
 }
 
-func (s *Layer2NodeServerImpl) ComputeMap(_ context.Context, in *lib.SubGraph) (*lib.MapContributions, error) {
-	message := &lib.MapContributions{}
+func (s *Layer2NodeServerImpl) ComputeMap(_ context.Context, in *lib.SubGraph) (*lib.MapIntDouble, error) {
+	message := &lib.MapIntDouble{}
 	for _, node := range in.Graph {
 		contributions := node.Map()
 		for id, v := range contributions {
-			message.Contribution[id] += v
+			message.Map[id] += v
 		}
 
 	}
 	return message, nil
 }
 
-func (s *Layer2NodeServerImpl) ComputeReduce(_ context.Context, in *lib.Sums) (*lib.Ranks, error) {
-	var ranks []*lib.Rank
+func (s *Layer2NodeServerImpl) ComputeReduce(_ context.Context, in *lib.Sums) (*lib.MapIntDouble, error) {
+	var ranks lib.MapIntDouble
 	for i, v := range in.Nodes {
-		rank := &lib.Rank{
-			ID:   v.ID,
-			Rank: in.DampingFactor*in.Sums[i] + (1-in.DampingFactor)*v.EValue,
-		}
-		ranks = append(ranks, rank)
+		ranks.Map[v.ID] = in.DampingFactor*in.Sums[i] + (1-in.DampingFactor)*v.EValue
 	}
-	return &lib.Ranks{Ranks: ranks}, nil
+	return &ranks, nil
 }
 
 func (n *Layer2Node) Init(info *lib.Info) error {

@@ -37,12 +37,15 @@ type MasterNode struct {
 	Layer1s       []*lib.ConnectionInfo // Connection info for layer 1nodes
 	NumberOfNodes []int32               // # nodes for every layer 1
 	Client        *lib.ConnectionInfo   // Client connection info
+	Threshold     float64               // Value used for convergence check
+	Counter       int32                 // Number of responses received
+	NewRanks      map[int32]float64     // New Ranks after computation
 }
 
 // Implemented in layer1_node.go
 type Layer1Node struct {
 	BaseNode                         // Base node information
-	FirstNode  *lib.ConnectionInfo   // Connection info of first node
+	MasterNode *lib.ConnectionInfo   // Connection info of first node
 	Layer1s    []*lib.ConnectionInfo // Connection info for other first layer nodes
 	Layer2s    []*lib.ConnectionInfo // Connection info for second layer nodes
 	SubGraphs  []lib.Graph           // Graph associated with layer 2 node
