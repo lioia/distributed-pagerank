@@ -49,7 +49,7 @@ func (n *Layer1Node) Update() error {
 			n.Phase = Reduce
 		}
 	case Convergence:
-		n.Convergence()
+		err = n.Convergence()
 	}
 	return err
 }
@@ -203,16 +203,18 @@ func (n *Layer1Node) Reduce() error {
 }
 
 func (n *Layer1Node) Convergence() error {
-	// ranks := &lib.Ranks{}
-	// for id, node := range n.ReduceData {
-	//
-	// }
-	// clientUrl := fmt.Sprintf("%s:%d", n.MasterNode.Address, n.MasterNode.Port)
-	// clientInfo, err := lib.MasterClientCall(clientUrl)
-	// // FIXME: error handling
-	// if err != nil {
-	// 	return err
-	// }
+	clientUrl := fmt.Sprintf("%s:%d", n.MasterNode.Address, n.MasterNode.Port)
+	clientInfo, err := lib.MasterClientCall(clientUrl)
+	// FIXME: error handling
+	if err != nil {
+		return err
+	}
+	message := &lib.MapIntDouble{Map: n.ReduceData}
+	_, err = clientInfo.Client.SyncRanks(clientInfo.Ctx, message)
+	// FIXME: error handling
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
