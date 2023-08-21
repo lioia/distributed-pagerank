@@ -15,7 +15,7 @@
     --go_opt=paths=source_relative \
     --go-grpc_out=. \
     --go-grpc_opt=paths=source_relative \
-    pkg/node/node.proto
+    pkg/services/node.proto
     ```
 - Server:
 - Client:

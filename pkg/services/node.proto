@@ -2,9 +2,9 @@ syntax = "proto3";
 
 import public "google/protobuf/empty.proto";
 
-option go_package = "github.com/lioia/distributed-pagerank/lib/node";
+option go_package = "github.com/lioia/distributed-pagerank/lib/services";
 
-package node;
+package services;
 
 service Node {
   rpc HealthCheck(google.protobuf.Empty) returns (State) {}
@@ -18,5 +18,6 @@ message ConnectionInfo {
 message State {
   int32 phase = 1;
   int32 role = 2;
-  repeated ConnectionInfo nodes = 3;
+  double dampingFactor = 3;
+  repeated ConnectionInfo other = 4;
 }
