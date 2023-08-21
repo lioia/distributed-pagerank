@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+import public "google/protobuf/empty.proto";
+
+option go_package = "github.com/lioia/distributed-pagerank/lib/node";
+
+package node;
+
+service Node {
+  rpc HealthCheck(google.protobuf.Empty) returns (State) {}
+}
+
+message ConnectionInfo {
+  string address = 1;
+  int32 port = 2;
+}
+
+message State {
+  int32 phase = 1;
+  int32 role = 2;
+  repeated ConnectionInfo nodes = 3;
+}
