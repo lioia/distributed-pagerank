@@ -54,6 +54,16 @@ func (n *Layer1Node) Update() error {
 	return err
 }
 
+// Check if master node is present
+// If it's not present, contact other layer 1 node notifying the issue
+// _election of new master node_
+func (n *Layer1Node) StateCheck() error {
+	clientUrl := fmt.Sprintf("%s:%d", n.MasterNode.Address, n.MasterNode.Port)
+	clientInfo, err := lib.MasterClientCall(clientUrl)
+
+	return nil
+}
+
 func (n *Layer1Node) Map() {
 	var wg sync.WaitGroup
 	errored := make(chan int) // -1: no errors; >= 0 i-th layer 2 error
@@ -223,8 +233,11 @@ type Layer1NodeServerImpl struct {
 	lib.UnimplementedLayer1NodeServer
 }
 
-func (s *Layer1NodeServerImpl) HealthCheck(context.Context, *lib.Empty) (*lib.Empty, error) {
-	return &lib.Empty{}, nil
+func (s *Layer1NodeServerImpl) HealthCheck(context.Context, *lib.Empty) (*lib.Layer1State, error) {
+	return &lib.Layer1State{
+		NumberOfLayer2: int32(len(s.Node.Layer2s)),
+		Phase:          int32(s.Node.Phase),
+	}, nil
 }
 
 func (s *Layer1NodeServerImpl) Announce(_ context.Context, in *lib.AnnounceMessage) (*lib.Empty, error) {

@@ -7,6 +7,7 @@ import (
 type Node interface {
 	Init(info *lib.Info) error
 	Update() error
+	StateCheck() error
 }
 
 // Phase can be treated as an enum

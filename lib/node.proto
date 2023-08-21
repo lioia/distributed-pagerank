@@ -13,21 +13,23 @@ service MasterNode {
 }
 
 service Layer1Node {
-  // TODO: messages should contains state update
-  rpc HealthCheck(Empty) returns (Empty) {}
+  rpc HealthCheck(Empty) returns (Layer1State) {}
   rpc Announce(AnnounceMessage) returns (Empty) {}
   rpc ReceiveGraph(SubGraph) returns (Empty) {}
   rpc SyncMap(MapIntDouble) returns (Empty) {}
 }
 
 service Layer2Node {
-  // TODO: messages should contains state update
-  rpc HealthCheck(Empty) returns (Empty) {}
   rpc ComputeMap(SubGraph) returns (MapIntDouble) {}
   rpc ComputeReduce(Sums) returns (MapIntDouble) {}
 }
 
 message Empty {}
+
+message Layer1State {
+  int32 numberOfLayer2 = 1; // # of layer 2 nodes
+  int32 phase = 2;          // Current phase
+}
 
 message ConnectionInfo {
   string address = 1;

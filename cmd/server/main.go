@@ -127,6 +127,12 @@ func main() {
 			// Wait for 500 msec
 			// TODO: 500 should be a configurable variable
 			time.Sleep(500 * time.Millisecond)
+			// State Consistency Check
+			if err = node.StateCheck(); err != nil {
+				log.Fatalf("there was an error while running the node: %v\n", err)
+				break
+			}
+			time.Sleep(500 * time.Millisecond)
 		}
 	}()
 }

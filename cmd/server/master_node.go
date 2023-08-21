@@ -24,6 +24,33 @@ func (n *MasterNode) Update() error {
 	return err
 }
 
+// Check if layer 1 nodes are still present
+// Layer 1 nodes repond with the # layer 2 nodes and the current phase
+// If a layer 1 node doesn't respond, it is assumed that it crashed ->
+// depending on Phase action are taken
+func (n *MasterNode) StateCheck() error {
+	for i, layer1 := range n.Layer1s {
+		clientUrl := fmt.Sprintf("%s:%d", layer1.Address, layer1.Port)
+		clientInfo, err := lib.Layer1ClientCall(clientUrl)
+		// FIXME: error handling
+		if err != nil {
+			return err
+		}
+		state, err := clientInfo.Client.HealthCheck(clientInfo.Ctx, nil)
+		if err != nil {
+			// TODO: assuming crash, do something:
+			// - remove from Layer 1 Nodes
+			// - contact other layer 1 nodes to inform of changes
+			// - do something based on phase
+			return err
+		}
+		n.NumberOfNodes[i] = state.NumberOfLayer2
+		// TODO: probably some checks are necessary
+		n.Phase = Phase(state.Phase)
+	}
+	return nil
+}
+
 func (n *MasterNode) Map() error {
 	// No other nodes in the network, compute everything by itself
 	// and returns the ranks to the client
@@ -92,7 +119,7 @@ func (n *MasterNode) SendDataToClient() error {
 	// 	return err
 	// }
 	// contrib := &lib.MapIntDouble{Map: n.MapData}
-	// _, err = clientInfo.Client.SyncMap(clientInfo.Ctx, contrib)
+	// _, err = clientInfo.Client.Respond(clientInfo.Ctx, contrib)
 	// // FIXME: error handling
 	// if err != nil {
 	// 	return err
