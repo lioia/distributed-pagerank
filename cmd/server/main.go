@@ -6,23 +6,26 @@ import (
 	"log"
 	"net"
 
+	"github.com/lioia/distributed-pagerank/cmd/server/node"
 	"github.com/lioia/distributed-pagerank/pkg"
 	"github.com/lioia/distributed-pagerank/pkg/services"
+
+	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"
 )
 
-var port int              // Port where a new node will be created
-var masterAddress string  // Expected address of the master node of the network
-var masterPort int        // Expected port of the master node
-var dampingFactor float64 // PageRank `c` parameter
-var threshold float64     // PageRank threshold
+var port int          // Port where the node will start
+var master string     // Expected connection string of the master node
+var c float64         // PageRank `c` parameter
+var threshold float64 // PageRank threshold
+var queue string      // Queue connection string
 
 func init() {
-	flag.IntVar(&port, "port", 1234, "Node Port number")
-	flag.StringVar(&masterAddress, "masterAddress", "127.0.0.1", "Master Node Address")
-	flag.IntVar(&masterPort, "masterPort", 1234, "Master Node Port number")
-	flag.Float64Var(&dampingFactor, "dampingFactor", 0.85, "Damping Factor (c)")
+	flag.IntVar(&port, "port", 0, "Port") // 0: automatic port assignment
+	flag.StringVar(&master, "master", "127.0.0.1:1234", "Master Connection")
+	flag.Float64Var(&c, "c", 0.85, "c variable")
 	flag.Float64Var(&threshold, "threshold", 0.0001, "Threshold")
+	flag.StringVar(&queue, "queue", "amqp://guest:guest@localhost:5672", "Queue Connection String")
 }
 
 func main() {
@@ -30,62 +33,62 @@ func main() {
 
 	// TODO: read configuration file
 
-	// Get local address from network interfaces
-	address, err := pkg.GetAddressFromInterfaces()
-	if err != nil {
-		log.Fatalf("unable to determine local address: %v\n", err)
-	}
-	conn := services.ConnectionInfo{
-		Address: address,
-		Port:    int32(port),
-	}
+	// Connect to RabbitMQ
+	queueConn, err := amqp.Dial(queue)
+	pkg.FailOnError("Could not connect to RabbitMQ", err)
+	defer queueConn.Close()
+	ch, err := queueConn.Channel()
+	pkg.FailOnError("Failed to open a channel to RabbitMQ", err)
+	defer ch.Close()
 
-	node := Node{
-		Phase:         Wait,
-		Role:          Master,
-		DampingFactor: 0.85, // TODO: configurable variable
-		Connection:    &conn,
+	n := node.Node{
+		Phase: node.Wait,
+		Role:  node.Master,
+		C:     0.85, // TODO: configurable variable
+		Queue: node.Queue{
+			Conn:    queueConn,
+			Channel: ch,
+		},
 	}
+	workQueueName := "work"
+	resultQueueName := "result"
 
 	// Contact master node to join the network
-	masterConn := services.ConnectionInfo{
-		Address: masterAddress,
-		Port:    int32(masterPort),
-	}
-	master, err := pkg.NodeCall(pkg.Url(&masterConn))
-	defer master.CancelFunc()
-	defer master.Conn.Close()
-	if err != nil {
-		log.Fatalf("could not create connection to the master: %v", err)
-	}
-	state, err := master.Client.HealthCheck(master.Ctx, nil)
+	masterClient, err := pkg.NodeCall(master)
+	defer masterClient.CancelFunc()
+	defer masterClient.Conn.Close()
+	pkg.FailOnError("Could not create connection to the masterClient node", err)
+	state, err := masterClient.Client.HealthCheck(masterClient.Ctx, nil)
 	if err != nil {
 		// There is no node at the address -> creating a new network
 		// This node will be the master
-		fmt.Printf("No master node found at %s\n", pkg.Url(&masterConn))
-		fmt.Printf("Starting master node at %s\n", pkg.Url(&conn))
+		log.Printf("No master node found at %s\n", master)
 	} else {
 		// Ther is a master node -> this node will be a worker
-		node.Role = Worker
-		node.DampingFactor = state.DampingFactor
-		node.Other = state.Other
-		node.UpperLayer = &masterConn
+		n.Role = node.Worker
+		n.C = state.C
+		n.Other = state.Other
+		n.UpperLayer = master
+		workQueueName = state.WorkQueue
+		resultQueueName = state.ResultQueue
 	}
+	work, err := pkg.DeclareQueue(workQueueName, ch)
+	pkg.FailOnError("Failed to declare 'work' queue", err)
+	n.Queue.Work = &work
+	result, err := pkg.DeclareQueue(resultQueueName, ch)
+	pkg.FailOnError("Failed to declare 'result' queue", err)
+	n.Queue.Result = &result
 
 	// Creating gRPC server
-	lis, err := net.Listen("tcp", pkg.Url(&conn))
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
+	lis, err := net.Listen("tcp", fmt.Sprintf("%d", port))
+	pkg.FailOnError("Failed to listen", err)
 	server := grpc.NewServer()
-	services.RegisterNodeServer(server, &NodeServerImpl{Node: &node})
-	log.Printf("Server listening at %s", pkg.Url(&conn))
+	services.RegisterNodeServer(server, &node.NodeServerImpl{Node: &n})
+	log.Printf("Starting %s node at %s\n", pkg.RoleToString(n.Role), lis.Addr().String())
 	// Running gRPC server in a goroutine
 	go func() {
-		if err = server.Serve(lis); err != nil {
-			log.Fatalf("failed to serve: %v\n", err)
-		}
+		err = server.Serve(lis)
+		pkg.FailOnError("Failed to serve", err)
 	}()
-	// TODO: connect to queue
 	// TODO: Node update loop
 }

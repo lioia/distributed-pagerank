@@ -1,4 +1,4 @@
-package main
+package node
 
 import (
 	"context"
@@ -14,10 +14,12 @@ type NodeServerImpl struct {
 
 func (s *NodeServerImpl) HealthCheck(context.Context, *emptypb.Empty) (*services.State, error) {
 	state := services.State{
-		Phase:         int32(s.Node.Phase),
-		Role:          int32(s.Node.Role),
-		DampingFactor: s.Node.DampingFactor,
-		Other:         s.Node.Other,
+		Phase:       int32(s.Node.Phase),
+		Role:        int32(s.Node.Role),
+		C:           s.Node.C,
+		WorkQueue:   s.Node.Queue.Work.Name,
+		ResultQueue: s.Node.Queue.Result.Name,
+		Other:       s.Node.Other,
 	}
 	return &state, nil
 }

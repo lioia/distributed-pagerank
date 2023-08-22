@@ -1,6 +1,8 @@
-package main
+package node
 
-import "github.com/lioia/distributed-pagerank/pkg/services"
+import (
+	amqp "github.com/rabbitmq/amqp091-go"
+)
 
 // Phase can be treated as an enum
 // (iota: the contants in this group, of type Phase, are auto-increment)
@@ -22,11 +24,18 @@ const (
 )
 
 type Node struct {
-	Phase         Phase                      // Current computation task
-	Role          Role                       // What this node has to do
-	DampingFactor float64                    // C-value in PageRank algorithm
-	Connection    *services.ConnectionInfo   // This node connection information
-	Other         []*services.ConnectionInfo // Other nodes in the network
-	// Node to contact: master for worker; client for master
-	UpperLayer *services.ConnectionInfo
+	Phase      Phase    // Current computation task
+	Role       Role     // What this node has to do
+	C          float64  // C-value in PageRank algorithm
+	Connection string   // This node connection information
+	Other      []string // Other nodes in the network
+	Queue      Queue    // Queue information
+	UpperLayer string   // Node to contact (worker -> master; master -> client)
+}
+
+type Queue struct {
+	Conn    *amqp.Connection
+	Channel *amqp.Channel
+	Work    *amqp.Queue
+	Result  *amqp.Queue
 }

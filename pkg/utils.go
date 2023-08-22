@@ -2,11 +2,12 @@ package pkg
 
 import (
 	"context"
-	"fmt"
-	"net"
+	"log"
 	"time"
 
+	"github.com/lioia/distributed-pagerank/cmd/server/node"
 	"github.com/lioia/distributed-pagerank/pkg/services"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -39,32 +40,29 @@ func NodeCall(url string) (Client[services.NodeClient], error) {
 	return clientInfo, nil
 }
 
-// https://stackoverflow.com/a/23558495
-func GetAddressFromInterfaces() (string, error) {
-	var address string
-	interfaces, err := net.Interfaces()
+func FailOnError(msg string, err error) {
 	if err != nil {
-		return address, err
+		log.Panicf("%s: %v", msg, err)
 	}
-
-	for _, inter := range interfaces {
-		addrs, err := inter.Addrs()
-		if err != nil {
-			continue // skip this interface
-		}
-
-		for _, addr := range addrs {
-			switch v := addr.(type) {
-			case *net.IPNet:
-				address = v.IP.String()
-			case *net.IPAddr:
-				address = v.IP.String()
-			}
-		}
-	}
-	return address, nil
 }
 
-func Url(conn *services.ConnectionInfo) string {
-	return fmt.Sprintf("%s:%d", conn.Address, conn.Port)
+func RoleToString(role node.Role) string {
+	switch role {
+	case node.Master:
+		return "Master"
+	case node.Worker:
+		return "Worker"
+	}
+	return "Undefined"
+}
+
+func DeclareQueue(name string, ch *amqp.Channel) (amqp.Queue, error) {
+	return ch.QueueDeclare(
+		name,  // name
+		false, // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
 }
