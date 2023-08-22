@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"time"
 
 	"github.com/lioia/distributed-pagerank/pkg"
 	"github.com/lioia/distributed-pagerank/pkg/nodes"
@@ -97,10 +96,10 @@ func main() {
 		if err = n.Update(); err != nil {
 			log.Fatalf("Node update error: %v", err)
 		}
-		for {
-			// TODO: state update
-			// Wait for x ms
-			// time.Sleep(500 * time.Millisecond) // TODO: 500: configurable
-		}
+		// for {
+		// TODO: state update
+		// Wait for x ms
+		// time.Sleep(500 * time.Millisecond) // TODO: 500: configurable
+		// }
 	}()
 }

@@ -93,7 +93,7 @@ func (n *Node) workerMap(subGraph map[int32]*services.GraphNode) map[int32]float
 
 func (n *Node) workerReduce(data *services.Reduce) map[int32]float64 {
 	ranks := make(map[int32]float64)
-	for _, v := range data.Node {
+	for _, v := range data.Nodes {
 		ranks[v.Id] = pkg.ComputeReduce(v, data.Sums[v.Id], n.C)
 	}
 	return ranks

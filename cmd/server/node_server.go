@@ -3,13 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/lioia/distributed-pagerank/pkg"
 	"github.com/lioia/distributed-pagerank/pkg/nodes"
 	"github.com/lioia/distributed-pagerank/pkg/services"
-	amqp "github.com/rabbitmq/amqp091-go"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -54,42 +51,7 @@ func (s *NodeServerImpl) UploadGraph(_ context.Context, in *services.GraphUpload
 		pkg.SingleNodePageRank(graph, s.Node.C, s.Node.Threshold)
 		return graph, nil
 	}
-	// Divide Graph in SubGraphs
-	numberOfSubGraphs := len(s.Node.Graph.Graph) / len(s.Node.Others)
-	subGraphs := make([]*services.Graph, numberOfSubGraphs)
-	index := 0
-	for id, node := range s.Node.Graph.Graph {
-		subGraphs[index/numberOfSubGraphs].Graph[id] = node
-		index += 1
-	}
-	// Send subgraph to work queue
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	for _, subGraph := range subGraphs {
-		job := services.Job{Type: 0, MapData: subGraph.Graph}
-		data, err := proto.Marshal(&job)
-		if err != nil {
-			// TODO: empty queue
-			return nil, err
-		}
-		err = s.Node.Queue.Channel.PublishWithContext(ctx,
-			"",
-			s.Node.Queue.Work.Name, // routing key
-			false,                  // mandatory
-			false,
-			amqp.Publishing{
-				DeliveryMode: amqp.Persistent,
-				ContentType:  "application/x-protobuf",
-				Body:         data,
-			})
-		if err != nil {
-			// TODO: empty queue
-			return nil, err
-		}
-	}
-	// Switch to Map phase
-	s.Node.Phase = nodes.Map
-	s.Node.Jobs = int32(numberOfSubGraphs)
+	s.Node.WriteGraphToQueue()
 	// Graph was successfully uploaded and computation has started
 	return nil, nil
 }

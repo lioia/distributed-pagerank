@@ -53,6 +53,6 @@ message Job {
 }
 
 message Reduce {
-  repeated GraphNode node = 1;
+  repeated GraphNode nodes = 1;
   map<int32, double> sums = 2;
 }
