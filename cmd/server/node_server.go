@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/lioia/distributed-pagerank/pkg"
 	"github.com/lioia/distributed-pagerank/pkg/services"
@@ -23,4 +24,13 @@ func (s *NodeServerImpl) HealthCheck(context.Context, *emptypb.Empty) (*services
 		Other:       s.Node.Other,
 	}
 	return &state, nil
+}
+
+func (s *NodeServerImpl) UploadGraph(_ context.Context, in *services.GraphUpload) (*services.MapIntDouble, error) {
+	if s.Node.Role != pkg.Master {
+		return nil, fmt.Errorf("This node cannot fulfill this request. Contact master node at: %s", s.Node.UpperLayer)
+	}
+	// TODO: if Other is empty, calculate ranks and return to client
+	// otherwise, return nil and switch to Map phase
+	return nil, nil
 }
