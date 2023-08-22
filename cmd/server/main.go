@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
 	"github.com/lioia/distributed-pagerank/pkg"
 	"github.com/lioia/distributed-pagerank/pkg/nodes"
@@ -85,14 +86,20 @@ func main() {
 	pkg.FailOnError("Failed to listen", err)
 	server := grpc.NewServer()
 	services.RegisterNodeServer(server, &NodeServerImpl{Node: &n})
-	log.Printf("Starting %s node at %s\n", pkg.RoleToString(n.Role), lis.Addr().String())
+	log.Printf("Starting %s node at %s\n", nodes.RoleToString(n.Role), lis.Addr().String())
 	// Running gRPC server in a goroutine
 	go func() {
 		err = server.Serve(lis)
 		pkg.FailOnError("Failed to serve", err)
 	}()
 	go func() {
-
+		if err = n.Update(); err != nil {
+			log.Fatalf("Node update error: %v", err)
+		}
+		for {
+			// TODO: state update
+			// Wait for x ms
+			// time.Sleep(500 * time.Millisecond) // TODO: 500: configurable
+		}
 	}()
-	// TODO: Node update loop
 }

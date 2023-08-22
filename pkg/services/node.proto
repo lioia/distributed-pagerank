@@ -12,7 +12,7 @@ service Node {
   rpc UploadGraph(GraphUpload) returns (Graph) {}
 }
 
-service ClientApi {
+service Client {
   rpc SendGraph(Graph) returns (google.protobuf.Empty) {}
 }
 
@@ -40,8 +40,24 @@ message MapIntDouble { map<int32, double> map = 1; }
 message Graph { map<int32, GraphNode> graph = 1; }
 
 message GraphNode {
-  int32 id = 1;                       // Node ID
-  map<int32, GraphNode> outLinks = 2; // Nodes this node points to
-  double rank = 3;                    // Current PageRank
-  double eValue = 4;                  // E probability vector for this node
+  int32 id = 1;                // Node ID
+  double rank = 3;             // Current PageRank
+  double eValue = 4;           // E probability vector for this node
+  repeated int32 outLinks = 2; // Node IDs this node points to
+}
+
+message Job {
+  int32 type = 1; // 0: Map job; 1: Reduce job
+  map<int32, GraphNode> mapData = 2;
+  Reduce reduceData = 3;
+}
+
+message Reduce {
+  repeated GraphNode node = 1;
+  map<int32, double> sums = 2;
+}
+
+message Result {
+  int32 type = 1;
+  map<int32, double> data = 2;
 }

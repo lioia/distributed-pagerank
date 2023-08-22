@@ -42,3 +42,20 @@ type Queue struct {
 	Work    *amqp.Queue
 	Result  *amqp.Queue
 }
+
+func RoleToString(role Role) string {
+	switch role {
+	case Master:
+		return "Master"
+	case Worker:
+		return "Worker"
+	}
+	return "Undefined"
+}
+
+func (n *Node) Update() error {
+	if n.Role == Worker {
+		return n.workerUpdate()
+	}
+	return nil
+}

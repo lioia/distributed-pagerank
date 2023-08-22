@@ -66,7 +66,8 @@ func (s *NodeServerImpl) UploadGraph(_ context.Context, in *services.GraphUpload
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	for _, subGraph := range subGraphs {
-		data, err := proto.Marshal(subGraph)
+		job := services.Job{Type: 0, MapData: subGraph.Graph}
+		data, err := proto.Marshal(&job)
 		if err != nil {
 			// TODO: empty queue
 			return nil, err

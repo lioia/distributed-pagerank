@@ -5,7 +5,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/lioia/distributed-pagerank/pkg/nodes"
 	"github.com/lioia/distributed-pagerank/pkg/services"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"
@@ -44,16 +43,6 @@ func FailOnError(msg string, err error) {
 	if err != nil {
 		log.Panicf("%s: %v", msg, err)
 	}
-}
-
-func RoleToString(role nodes.Role) string {
-	switch role {
-	case nodes.Master:
-		return "Master"
-	case nodes.Worker:
-		return "Worker"
-	}
-	return "Undefined"
 }
 
 func DeclareQueue(name string, ch *amqp.Channel) (amqp.Queue, error) {
