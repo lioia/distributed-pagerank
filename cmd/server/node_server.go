@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lioia/distributed-pagerank/pkg"
+	"github.com/lioia/distributed-pagerank/pkg/nodes"
 	"github.com/lioia/distributed-pagerank/pkg/services"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/protobuf/proto"
@@ -13,7 +14,7 @@ import (
 )
 
 type NodeServerImpl struct {
-	Node *pkg.Node
+	Node *nodes.Node
 	services.UnimplementedNodeServer
 }
 
@@ -28,7 +29,7 @@ func (s *NodeServerImpl) StateUpdate(context.Context, *emptypb.Empty) (*services
 }
 
 func (s *NodeServerImpl) NodeJoin(context.Context, *emptypb.Empty) (*services.Constants, error) {
-	if s.Node.Role == pkg.Worker {
+	if s.Node.Role == nodes.Worker {
 		return nil, fmt.Errorf("This node cannot fulfill this request. Contact master node at: %s", s.Node.UpperLayer)
 	}
 	constants := services.Constants{
@@ -41,7 +42,7 @@ func (s *NodeServerImpl) NodeJoin(context.Context, *emptypb.Empty) (*services.Co
 }
 
 func (s *NodeServerImpl) UploadGraph(_ context.Context, in *services.GraphUpload) (*services.Graph, error) {
-	if s.Node.Role != pkg.Master {
+	if s.Node.Role != nodes.Master {
 		return nil, fmt.Errorf("This node cannot fulfill this request. Contact master node at: %s", s.Node.UpperLayer)
 	}
 	graph, err := pkg.LoadGraphFromBytes(in.Contents)
@@ -86,6 +87,7 @@ func (s *NodeServerImpl) UploadGraph(_ context.Context, in *services.GraphUpload
 		}
 	}
 	// Switch to Map phase
-	s.Node.Phase = pkg.Map
+	s.Node.Phase = nodes.Map
+	// Graph was successfully uploaded and computation has started
 	return nil, nil
 }

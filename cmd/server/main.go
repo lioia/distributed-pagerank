@@ -7,6 +7,7 @@ import (
 	"net"
 
 	"github.com/lioia/distributed-pagerank/pkg"
+	"github.com/lioia/distributed-pagerank/pkg/nodes"
 	"github.com/lioia/distributed-pagerank/pkg/services"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -40,11 +41,11 @@ func main() {
 	pkg.FailOnError("Failed to open a channel to RabbitMQ", err)
 	defer ch.Close()
 
-	n := pkg.Node{
-		Phase: pkg.Wait,
-		Role:  pkg.Master,
+	n := nodes.Node{
+		Phase: nodes.Wait,
+		Role:  nodes.Master,
 		C:     0.85, // TODO: configurable variable
-		Queue: pkg.Queue{
+		Queue: nodes.Queue{
 			Conn:    queueConn,
 			Channel: ch,
 		},
@@ -64,7 +65,8 @@ func main() {
 		log.Printf("No master node found at %s\n", master)
 	} else {
 		// Ther is a master node -> this node will be a worker
-		n.Role = pkg.Worker
+		n.Role = nodes.Worker
+		n.Phase = nodes.Map // Worker start on Map phase
 		n.UpperLayer = master
 		n.C = constants.C
 		n.Threshold = constants.Threshold
@@ -88,6 +90,9 @@ func main() {
 	go func() {
 		err = server.Serve(lis)
 		pkg.FailOnError("Failed to serve", err)
+	}()
+	go func() {
+
 	}()
 	// TODO: Node update loop
 }

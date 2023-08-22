@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/lioia/distributed-pagerank/pkg/nodes"
 	"github.com/lioia/distributed-pagerank/pkg/services"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"
@@ -45,11 +46,11 @@ func FailOnError(msg string, err error) {
 	}
 }
 
-func RoleToString(role Role) string {
+func RoleToString(role nodes.Role) string {
 	switch role {
-	case Master:
+	case nodes.Master:
 		return "Master"
-	case Worker:
+	case nodes.Worker:
 		return "Worker"
 	}
 	return "Undefined"

@@ -1,4 +1,4 @@
-package pkg
+package nodes
 
 import (
 	"github.com/lioia/distributed-pagerank/pkg/services"
