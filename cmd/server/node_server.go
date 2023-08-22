@@ -1,14 +1,15 @@
-package node
+package main
 
 import (
 	"context"
 
+	"github.com/lioia/distributed-pagerank/pkg"
 	"github.com/lioia/distributed-pagerank/pkg/services"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type NodeServerImpl struct {
-	Node *Node
+	Node *pkg.Node
 	services.UnimplementedNodeServer
 }
 

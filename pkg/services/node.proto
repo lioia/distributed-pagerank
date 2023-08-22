@@ -2,7 +2,7 @@ syntax = "proto3";
 
 import public "google/protobuf/empty.proto";
 
-option go_package = "github.com/lioia/distributed-pagerank/lib/services";
+option go_package = "github.com/lioia/distributed-pagerank/pkg/services";
 
 package services;
 

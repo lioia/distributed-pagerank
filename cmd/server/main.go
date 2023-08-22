@@ -6,7 +6,6 @@ import (
 	"log"
 	"net"
 
-	"github.com/lioia/distributed-pagerank/cmd/server/node"
 	"github.com/lioia/distributed-pagerank/pkg"
 	"github.com/lioia/distributed-pagerank/pkg/services"
 
@@ -41,11 +40,11 @@ func main() {
 	pkg.FailOnError("Failed to open a channel to RabbitMQ", err)
 	defer ch.Close()
 
-	n := node.Node{
-		Phase: node.Wait,
-		Role:  node.Master,
+	n := pkg.Node{
+		Phase: pkg.Wait,
+		Role:  pkg.Master,
 		C:     0.85, // TODO: configurable variable
-		Queue: node.Queue{
+		Queue: pkg.Queue{
 			Conn:    queueConn,
 			Channel: ch,
 		},
@@ -65,7 +64,7 @@ func main() {
 		log.Printf("No master node found at %s\n", master)
 	} else {
 		// Ther is a master node -> this node will be a worker
-		n.Role = node.Worker
+		n.Role = pkg.Worker
 		n.C = state.C
 		n.Other = state.Other
 		n.UpperLayer = master
@@ -83,7 +82,7 @@ func main() {
 	lis, err := net.Listen("tcp", fmt.Sprintf("%d", port))
 	pkg.FailOnError("Failed to listen", err)
 	server := grpc.NewServer()
-	services.RegisterNodeServer(server, &node.NodeServerImpl{Node: &n})
+	services.RegisterNodeServer(server, &NodeServerImpl{Node: &n})
 	log.Printf("Starting %s node at %s\n", pkg.RoleToString(n.Role), lis.Addr().String())
 	// Running gRPC server in a goroutine
 	go func() {
