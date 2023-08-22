@@ -15,7 +15,7 @@ func SingleNodePageRank(graph *services.Graph, c, threshold float64) {
 			// Map Phase: sum_(v in B_u) (R_i(v) / N_v)
 			nV := float64(len(u.OutLinks))
 			for _, v := range u.OutLinks {
-				sum[v.Id] += u.Rank / nV
+				sum[v] += u.Rank / nV
 			}
 		}
 
@@ -38,7 +38,7 @@ func ComputeMap(u *services.GraphNode) map[int32]float64 {
 	contributions := make(map[int32]float64)
 	nV := float64(len(u.OutLinks))
 	for _, v := range u.OutLinks {
-		contributions[v.Id] = u.Rank / nV
+		contributions[v] = u.Rank / nV
 	}
 	return contributions
 }

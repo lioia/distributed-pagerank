@@ -25,19 +25,13 @@ func LoadGraphFromBytes(contents []byte) (*services.Graph, error) {
 		}
 		// First time encoutering this node, so it has to be created
 		if g[from] == nil {
-			g[from] = &services.GraphNode{
-				Id:       from,
-				OutLinks: make(map[int32]*services.GraphNode),
-			}
+			g[from] = &services.GraphNode{Id: from}
 		}
 		if g[to] == nil {
-			g[to] = &services.GraphNode{
-				Id:       to,
-				OutLinks: make(map[int32]*services.GraphNode),
-			}
+			g[to] = &services.GraphNode{Id: to}
 		}
 		// Adding the outlink to the current node
-		g[from].OutLinks[to] = g[to]
+		g[from].OutLinks = append(g[from].OutLinks, to)
 	}
 
 	// Initialize ranks and e values
