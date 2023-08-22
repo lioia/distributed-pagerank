@@ -89,6 +89,7 @@ func (s *NodeServerImpl) UploadGraph(_ context.Context, in *services.GraphUpload
 	}
 	// Switch to Map phase
 	s.Node.Phase = nodes.Map
+	s.Node.Jobs = int32(numberOfSubGraphs)
 	// Graph was successfully uploaded and computation has started
 	return nil, nil
 }

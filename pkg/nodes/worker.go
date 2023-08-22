@@ -2,7 +2,6 @@ package nodes
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -35,21 +34,21 @@ func (n *Node) workerUpdate() error {
 			var job services.Job
 			err := proto.Unmarshal(d.Body, &job)
 			if err != nil {
-				FailOnNack(d, err)
+				pkg.FailOnNack(d, err)
 				continue
 			}
+			result := services.MapIntDouble{}
 			// Create result value
-			result := services.Result{Type: job.Type}
 			// Handle job based on type
 			if job.Type == 0 {
-				result.Data = n.workerMap(job.MapData)
+				result.Map = n.workerMap(job.MapData)
 			} else if job.Type == 1 {
-				result.Data = n.workerReduce(job.ReduceData)
+				result.Map = n.workerReduce(job.ReduceData)
 			}
 			// Publish result to Result queue
 			data, err := proto.Marshal(&result)
 			if err != nil {
-				FailOnNack(d, err)
+				pkg.FailOnNack(d, err)
 				continue
 			}
 			err = n.Queue.Channel.PublishWithContext(ctx,
@@ -63,13 +62,13 @@ func (n *Node) workerUpdate() error {
 					Body:         data,
 				})
 			if err != nil {
-				FailOnNack(d, err)
+				pkg.FailOnNack(d, err)
 				continue
 			}
 
 			// Ack
 			if err := d.Ack(false); err != nil {
-				FailOnNack(d, err)
+				pkg.FailOnNack(d, err)
 				continue
 			}
 		}
@@ -98,12 +97,4 @@ func (n *Node) workerReduce(data *services.Reduce) map[int32]float64 {
 		ranks[v.Id] = pkg.ComputeReduce(v, data.Sums[v.Id], n.C)
 	}
 	return ranks
-}
-
-func FailOnNack(d amqp.Delivery, err error) {
-	fmt.Printf("Could not marshal result: %v", err)
-	// Message will be re-added to the queue
-	if err = d.Nack(false, true); err != nil {
-		log.Fatalf("Could not NACK to message queue: %v", err)
-	}
 }

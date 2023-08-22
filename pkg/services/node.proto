@@ -56,8 +56,3 @@ message Reduce {
   repeated GraphNode node = 1;
   map<int32, double> sums = 2;
 }
-
-message Result {
-  int32 type = 1;
-  map<int32, double> data = 2;
-}

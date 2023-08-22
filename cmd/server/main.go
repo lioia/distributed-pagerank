@@ -46,6 +46,7 @@ func main() {
 		Phase: nodes.Wait,
 		Role:  nodes.Master,
 		C:     0.85, // TODO: configurable variable
+		Data:  make(map[int32]float64),
 		Queue: nodes.Queue{
 			Conn:    queueConn,
 			Channel: ch,

@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -54,4 +55,12 @@ func DeclareQueue(name string, ch *amqp.Channel) (amqp.Queue, error) {
 		false, // no-wait
 		nil,   // arguments
 	)
+}
+
+func FailOnNack(d amqp.Delivery, err error) {
+	fmt.Printf("Could not marshal result: %v", err)
+	// Message will be re-added to the queue
+	if err = d.Nack(false, true); err != nil {
+		log.Fatalf("Could not NACK to message queue: %v", err)
+	}
 }

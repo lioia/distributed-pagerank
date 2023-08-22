@@ -25,15 +25,18 @@ const (
 )
 
 type Node struct {
-	Phase      Phase           // Current computation task
-	Role       Role            // What this node has to do
-	C          float64         // C-value in PageRank algorithm
-	Threshold  float64         // Threshold value used in PageRank algorithm
-	Connection string          // This node connection information
-	Others     []string        // Other nodes in the network
-	Queue      Queue           // Queue information
-	UpperLayer string          // Node to contact (worker -> master; master -> client)
-	Graph      *services.Graph // Graph Structure
+	Phase      Phase             // Current computation task
+	Role       Role              // What this node has to do
+	C          float64           // C-value in PageRank algorithm
+	Threshold  float64           // Threshold value used in PageRank algorithm
+	Connection string            // This node connection information
+	Others     []string          // Other nodes in the network
+	Queue      Queue             // Queue information
+	UpperLayer string            // Node to contact (worker -> master; master -> client)
+	Graph      *services.Graph   // Graph Structure
+	Jobs       int32             // Number of jobs dispatched to worker nodes
+	Responses  int32             // Number of responses received
+	Data       map[int32]float64 // Intermediate data received from map/reduce
 }
 
 type Queue struct {
@@ -56,6 +59,8 @@ func RoleToString(role Role) string {
 func (n *Node) Update() error {
 	if n.Role == Worker {
 		return n.workerUpdate()
+	} else if n.Role == Master {
+		return n.masterUpdate()
 	}
 	return nil
 }
