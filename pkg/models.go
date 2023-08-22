@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"github.com/lioia/distributed-pagerank/pkg/services"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -24,13 +25,15 @@ const (
 )
 
 type Node struct {
-	Phase      Phase    // Current computation task
-	Role       Role     // What this node has to do
-	C          float64  // C-value in PageRank algorithm
-	Connection string   // This node connection information
-	Other      []string // Other nodes in the network
-	Queue      Queue    // Queue information
-	UpperLayer string   // Node to contact (worker -> master; master -> client)
+	Phase      Phase           // Current computation task
+	Role       Role            // What this node has to do
+	C          float64         // C-value in PageRank algorithm
+	Threshold  float64         // Threshold value used in PageRank algorithm
+	Connection string          // This node connection information
+	Others     []string        // Other nodes in the network
+	Queue      Queue           // Queue information
+	UpperLayer string          // Node to contact (worker -> master; master -> client)
+	Graph      *services.Graph // Graph Structure
 }
 
 type Queue struct {

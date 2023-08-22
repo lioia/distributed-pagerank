@@ -57,7 +57,7 @@ func main() {
 	defer masterClient.CancelFunc()
 	defer masterClient.Conn.Close()
 	pkg.FailOnError("Could not create connection to the masterClient node", err)
-	state, err := masterClient.Client.HealthCheck(masterClient.Ctx, nil)
+	constants, err := masterClient.Client.NodeJoin(masterClient.Ctx, nil)
 	if err != nil {
 		// There is no node at the address -> creating a new network
 		// This node will be the master
@@ -65,11 +65,11 @@ func main() {
 	} else {
 		// Ther is a master node -> this node will be a worker
 		n.Role = pkg.Worker
-		n.C = state.C
-		n.Other = state.Other
 		n.UpperLayer = master
-		workQueueName = state.WorkQueue
-		resultQueueName = state.ResultQueue
+		n.C = constants.C
+		n.Threshold = constants.Threshold
+		workQueueName = constants.WorkQueue
+		resultQueueName = constants.ResultQueue
 	}
 	work, err := pkg.DeclareQueue(workQueueName, ch)
 	pkg.FailOnError("Failed to declare 'work' queue", err)

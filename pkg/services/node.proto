@@ -7,22 +7,27 @@ option go_package = "github.com/lioia/distributed-pagerank/pkg/services";
 package services;
 
 service Node {
-  rpc HealthCheck(google.protobuf.Empty) returns (State) {}
-  rpc UploadGraph(GraphUpload) returns (MapIntDouble) {}
+  rpc StateUpdate(google.protobuf.Empty) returns (State) {}
+  rpc NodeJoin(google.protobuf.Empty) returns (Constants) {}
+  rpc UploadGraph(GraphUpload) returns (Graph) {}
 }
 
 service ClientApi {
-  // TODO: change MapIntDouble to Graph message
-  rpc SendGraph(MapIntDouble) returns (google.protobuf.Empty) {}
+  rpc SendGraph(Graph) returns (google.protobuf.Empty) {}
 }
 
 message State {
   int32 phase = 1;
   int32 role = 2;
+  Graph graph = 6;
+  repeated string others = 7;
+}
+
+message Constants {
+  string workQueue = 1;
+  string resultQueue = 2;
   double c = 3;
-  string workQueue = 4;
-  string resultQueue = 5;
-  repeated string other = 6;
+  double threshold = 4;
 }
 
 message GraphUpload {
@@ -30,4 +35,13 @@ message GraphUpload {
   bytes contents = 2;
 }
 
-message MapIntDouble { map<int32, double> Map = 1; }
+message MapIntDouble { map<int32, double> map = 1; }
+
+message Graph { map<int32, GraphNode> graph = 1; }
+
+message GraphNode {
+  int32 id = 1;                       // Node ID
+  map<int32, GraphNode> outLinks = 2; // Nodes this node points to
+  double rank = 3;                    // Current PageRank
+  double eValue = 4;                  // E probability vector for this node
+}
