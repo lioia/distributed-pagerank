@@ -51,7 +51,7 @@ func (s *NodeServerImpl) UploadGraph(_ context.Context, in *services.GraphUpload
 		pkg.SingleNodePageRank(graph, s.Node.C, s.Node.Threshold)
 		return graph, nil
 	}
-	s.Node.WriteGraphToQueue()
+	err = s.Node.WriteGraphToQueue()
 	// Graph was successfully uploaded and computation has started
-	return nil, nil
+	return nil, err
 }

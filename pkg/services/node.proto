@@ -12,7 +12,7 @@ service Node {
   rpc UploadGraph(GraphUpload) returns (Graph) {}
 }
 
-service Client {
+service Api {
   rpc SendGraph(Graph) returns (google.protobuf.Empty) {}
 }
 

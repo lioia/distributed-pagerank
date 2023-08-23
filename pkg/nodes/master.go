@@ -75,7 +75,7 @@ func masterCollect(n *Node) error {
 		job := services.Job{Type: 1, ReduceData: &reduce}
 		data, err := proto.Marshal(&job)
 		if err != nil {
-			// TODO: empty queue
+			pkg.EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
 			return err
 		}
 		err = n.Queue.Channel.PublishWithContext(ctx,
@@ -89,7 +89,7 @@ func masterCollect(n *Node) error {
 				Body:         data,
 			})
 		if err != nil {
-			// TODO: empty queue
+			pkg.EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
 			return err
 		}
 	}
@@ -114,8 +114,20 @@ func masterConvergence(n *Node) error {
 		// Start new computation with updated pagerank values
 		return n.WriteGraphToQueue()
 	} else {
-		// TODO: converged, send data to client
+		client, err := pkg.ClientCall(n.UpperLayer)
+		if err != nil {
+			return err
+		}
+		_, err = client.Client.SendGraph(client.Ctx, n.Graph)
+		if err != nil {
+			return err
+		}
+		// Node Reset
 		n.Phase = Wait
+		n.Graph = nil
+		n.Jobs = 0
+		n.Responses = 0
+		n.Data = make(map[int32]float64)
 	}
 
 	return nil
@@ -140,7 +152,7 @@ func (n *Node) WriteGraphToQueue() error {
 		job := services.Job{Type: 0, MapData: subGraph.Graph}
 		data, err := proto.Marshal(&job)
 		if err != nil {
-			// TODO: empty queue
+			pkg.EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
 			return err
 		}
 		err = n.Queue.Channel.PublishWithContext(ctx,
@@ -154,7 +166,7 @@ func (n *Node) WriteGraphToQueue() error {
 				Body:         data,
 			})
 		if err != nil {
-			// TODO: empty queue
+			pkg.EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
 			return err
 		}
 	}

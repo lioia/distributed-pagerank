@@ -40,6 +40,27 @@ func NodeCall(url string) (Client[services.NodeClient], error) {
 	return clientInfo, nil
 }
 
+func ClientCall(url string) (Client[services.ApiClient], error) {
+	var clientInfo Client[services.ApiClient]
+	conn, err := grpc.Dial(
+		url,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		return clientInfo, err
+	}
+	client := services.NewApiClient(conn)
+	if err != nil {
+		return clientInfo, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	clientInfo.Conn = conn
+	clientInfo.Client = client
+	clientInfo.Ctx = ctx
+	clientInfo.CancelFunc = cancel
+	return clientInfo, nil
+}
+
 func FailOnError(msg string, err error) {
 	if err != nil {
 		log.Panicf("%s: %v", msg, err)
@@ -62,5 +83,26 @@ func FailOnNack(d amqp.Delivery, err error) {
 	// Message will be re-added to the queue
 	if err = d.Nack(false, true); err != nil {
 		log.Fatalf("Could not NACK to message queue: %v", err)
+	}
+}
+
+func EmptyQueue(ch *amqp.Channel, name string) {
+	msgs, err := ch.Consume(
+		name,  // queue
+		"",    // consumer
+		false, // auto-ack
+		false, // exclusive
+		false, // no-local
+		false, // no-wait
+		nil,   // args
+	)
+	FailOnError("Could not register a consumer", err)
+
+	for msg := range msgs {
+		// Acknowledge the message to remove it from the queue
+		err := msg.Ack(false)
+		if err != nil {
+			log.Printf("Failed to acknowledge message: %v", err)
+		}
 	}
 }
