@@ -1,14 +1,13 @@
-package nodes
+package pkg
 
 import (
 	"context"
 	"log"
 	"time"
 
-	"github.com/lioia/distributed-pagerank/pkg"
-	"github.com/lioia/distributed-pagerank/pkg/services"
+	"github.com/lioia/distributed-pagerank/proto"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"google.golang.org/protobuf/proto"
+	protobuf "google.golang.org/protobuf/proto"
 )
 
 func (n *Node) workerUpdate() error {
@@ -22,7 +21,7 @@ func (n *Node) workerUpdate() error {
 		false,             // no-wait
 		nil,               // args
 	)
-	pkg.FailOnError("Could not register a consumer", err)
+	FailOnError("Could not register a consumer", err)
 	var forever chan struct{}
 
 	// Queue Message Handler
@@ -31,13 +30,13 @@ func (n *Node) workerUpdate() error {
 	go func() {
 		for d := range msgs {
 			// Get data from bytes
-			var job services.Job
-			err := proto.Unmarshal(d.Body, &job)
+			var job proto.Job
+			err := protobuf.Unmarshal(d.Body, &job)
 			if err != nil {
-				pkg.FailOnNack(d, err)
+				FailOnNack(d, err)
 				continue
 			}
-			result := services.MapIntDouble{}
+			result := proto.MapIntDouble{}
 			// Create result value
 			// Handle job based on type
 			if job.Type == 0 {
@@ -46,9 +45,9 @@ func (n *Node) workerUpdate() error {
 				result.Map = n.workerReduce(job.ReduceData)
 			}
 			// Publish result to Result queue
-			data, err := proto.Marshal(&result)
+			data, err := protobuf.Marshal(&result)
 			if err != nil {
-				pkg.FailOnNack(d, err)
+				FailOnNack(d, err)
 				continue
 			}
 			err = n.Queue.Channel.PublishWithContext(ctx,
@@ -62,13 +61,13 @@ func (n *Node) workerUpdate() error {
 					Body:         data,
 				})
 			if err != nil {
-				pkg.FailOnNack(d, err)
+				FailOnNack(d, err)
 				continue
 			}
 
 			// Ack
 			if err := d.Ack(false); err != nil {
-				pkg.FailOnNack(d, err)
+				FailOnNack(d, err)
 				continue
 			}
 		}
@@ -80,10 +79,10 @@ func (n *Node) workerUpdate() error {
 	return nil
 }
 
-func (n *Node) workerMap(subGraph map[int32]*services.GraphNode) map[int32]float64 {
+func (n *Node) workerMap(subGraph map[int32]*proto.GraphNode) map[int32]float64 {
 	contributions := make(map[int32]float64)
 	for _, u := range subGraph {
-		data := pkg.ComputeMap(u)
+		data := ComputeMap(u)
 		for id, v := range data {
 			contributions[id] += v
 		}
@@ -91,10 +90,10 @@ func (n *Node) workerMap(subGraph map[int32]*services.GraphNode) map[int32]float
 	return contributions
 }
 
-func (n *Node) workerReduce(data *services.Reduce) map[int32]float64 {
+func (n *Node) workerReduce(data *proto.Reduce) map[int32]float64 {
 	ranks := make(map[int32]float64)
 	for _, v := range data.Nodes {
-		ranks[v.Id] = pkg.ComputeReduce(v, data.Sums[v.Id], n.C)
+		ranks[v.Id] = ComputeReduce(v, data.Sums[v.Id], n.C)
 	}
 	return ranks
 }

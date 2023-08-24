@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lioia/distributed-pagerank/pkg/services"
+	"github.com/lioia/distributed-pagerank/proto"
 )
 
-func LoadGraphFromBytes(contents []byte) (*services.Graph, error) {
-	g := make(map[int32]*services.GraphNode)
+func LoadGraphFromBytes(contents []byte) (*proto.Graph, error) {
+	g := make(map[int32]*proto.GraphNode)
 	// Split file contents in lines (based on newline delimiter)
 	lines := strings.Split(strings.ReplaceAll(string(contents), "\r\n", "\n"), "\n")
 	for _, line := range lines {
@@ -25,10 +25,10 @@ func LoadGraphFromBytes(contents []byte) (*services.Graph, error) {
 		}
 		// First time encoutering this node, so it has to be created
 		if g[from] == nil {
-			g[from] = &services.GraphNode{Id: from}
+			g[from] = &proto.GraphNode{Id: from}
 		}
 		if g[to] == nil {
-			g[to] = &services.GraphNode{Id: to}
+			g[to] = &proto.GraphNode{Id: to}
 		}
 		// Adding the outlink to the current node
 		g[from].OutLinks = append(g[from].OutLinks, to)
@@ -48,7 +48,7 @@ func LoadGraphFromBytes(contents []byte) (*services.Graph, error) {
 	for id := range g {
 		g[id].EValue /= total
 	}
-	return &services.Graph{Graph: g}, nil
+	return &proto.Graph{Graph: g}, nil
 
 }
 

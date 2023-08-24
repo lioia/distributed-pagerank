@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/lioia/distributed-pagerank/pkg/services"
+	"github.com/lioia/distributed-pagerank/proto"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -19,8 +19,8 @@ type Client[T interface{}] struct {
 	CancelFunc context.CancelFunc
 }
 
-func NodeCall(url string) (Client[services.NodeClient], error) {
-	var clientInfo Client[services.NodeClient]
+func NodeCall(url string) (Client[proto.NodeClient], error) {
+	var clientInfo Client[proto.NodeClient]
 	conn, err := grpc.Dial(
 		url,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -28,7 +28,7 @@ func NodeCall(url string) (Client[services.NodeClient], error) {
 	if err != nil {
 		return clientInfo, err
 	}
-	client := services.NewNodeClient(conn)
+	client := proto.NewNodeClient(conn)
 	if err != nil {
 		return clientInfo, err
 	}
@@ -40,8 +40,8 @@ func NodeCall(url string) (Client[services.NodeClient], error) {
 	return clientInfo, nil
 }
 
-func ClientCall(url string) (Client[services.ApiClient], error) {
-	var clientInfo Client[services.ApiClient]
+func ClientCall(url string) (Client[proto.ApiClient], error) {
+	var clientInfo Client[proto.ApiClient]
 	conn, err := grpc.Dial(
 		url,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -49,7 +49,7 @@ func ClientCall(url string) (Client[services.ApiClient], error) {
 	if err != nil {
 		return clientInfo, err
 	}
-	client := services.NewApiClient(conn)
+	client := proto.NewApiClient(conn)
 	if err != nil {
 		return clientInfo, err
 	}

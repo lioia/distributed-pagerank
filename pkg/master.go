@@ -1,4 +1,4 @@
-package nodes
+package pkg
 
 import (
 	"context"
@@ -6,10 +6,10 @@ import (
 	"math"
 	"time"
 
-	"github.com/lioia/distributed-pagerank/pkg"
-	"github.com/lioia/distributed-pagerank/pkg/services"
+	"github.com/lioia/distributed-pagerank/proto"
+
 	amqp "github.com/rabbitmq/amqp091-go"
-	"google.golang.org/protobuf/proto"
+	protobuf "google.golang.org/protobuf/proto"
 )
 
 func (n *Node) masterUpdate() error {
@@ -57,7 +57,7 @@ func masterCollect(n *Node) error {
 	}
 	// Divide Graph in SubGraphs
 	numberOfJobs := len(n.Data) / len(n.Others)
-	subGraphs := make([]*services.Graph, numberOfJobs)
+	subGraphs := make([]*proto.Graph, numberOfJobs)
 	index := 0
 	for id, node := range n.Graph.Graph {
 		subGraphs[index/numberOfJobs].Graph[id] = node
@@ -67,15 +67,15 @@ func masterCollect(n *Node) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	for _, subGraph := range subGraphs {
-		reduce := services.Reduce{}
+		reduce := proto.Reduce{}
 		for id, v := range subGraph.Graph {
 			reduce.Nodes = append(reduce.Nodes, v)
 			reduce.Sums[id] = n.Data[id]
 		}
-		job := services.Job{Type: 1, ReduceData: &reduce}
-		data, err := proto.Marshal(&job)
+		job := proto.Job{Type: 1, ReduceData: &reduce}
+		data, err := protobuf.Marshal(&job)
 		if err != nil {
-			pkg.EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
+			EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
 			return err
 		}
 		err = n.Queue.Channel.PublishWithContext(ctx,
@@ -89,7 +89,7 @@ func masterCollect(n *Node) error {
 				Body:         data,
 			})
 		if err != nil {
-			pkg.EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
+			EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
 			return err
 		}
 	}
@@ -114,7 +114,7 @@ func masterConvergence(n *Node) error {
 		// Start new computation with updated pagerank values
 		return n.WriteGraphToQueue()
 	} else {
-		client, err := pkg.ClientCall(n.UpperLayer)
+		client, err := ClientCall(n.UpperLayer)
 		if err != nil {
 			return err
 		}
@@ -139,7 +139,7 @@ func (n *Node) WriteGraphToQueue() error {
 	}
 	// Divide Graph in SubGraphs
 	numberOfSubGraphs := len(n.Graph.Graph) / len(n.Others)
-	subGraphs := make([]*services.Graph, numberOfSubGraphs)
+	subGraphs := make([]*proto.Graph, numberOfSubGraphs)
 	index := 0
 	for id, node := range n.Graph.Graph {
 		subGraphs[index/numberOfSubGraphs].Graph[id] = node
@@ -149,10 +149,10 @@ func (n *Node) WriteGraphToQueue() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	for _, subGraph := range subGraphs {
-		job := services.Job{Type: 0, MapData: subGraph.Graph}
-		data, err := proto.Marshal(&job)
+		job := proto.Job{Type: 0, MapData: subGraph.Graph}
+		data, err := protobuf.Marshal(&job)
 		if err != nil {
-			pkg.EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
+			EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
 			return err
 		}
 		err = n.Queue.Channel.PublishWithContext(ctx,
@@ -166,7 +166,7 @@ func (n *Node) WriteGraphToQueue() error {
 				Body:         data,
 			})
 		if err != nil {
-			pkg.EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
+			EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
 			return err
 		}
 	}
@@ -187,17 +187,17 @@ func masterReadQueue(n *Node) error {
 		false,               // no-wait
 		nil,                 // args
 	)
-	pkg.FailOnError("Could not register a consumer", err)
+	FailOnError("Could not register a consumer", err)
 	var forever chan struct{}
 
 	// Queue Message Handler
 	go func() {
 		for d := range msgs {
 			// Get data from bytes
-			var result services.MapIntDouble
-			err := proto.Unmarshal(d.Body, &result)
+			var result proto.MapIntDouble
+			err := protobuf.Unmarshal(d.Body, &result)
 			if err != nil {
-				pkg.FailOnNack(d, err)
+				FailOnNack(d, err)
 				continue
 			}
 			n.Responses += 1
@@ -207,7 +207,7 @@ func masterReadQueue(n *Node) error {
 
 			// Ack
 			if err := d.Ack(false); err != nil {
-				pkg.FailOnNack(d, err)
+				FailOnNack(d, err)
 				continue
 			}
 		}

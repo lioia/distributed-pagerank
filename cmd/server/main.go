@@ -7,8 +7,7 @@ import (
 	"net"
 
 	"github.com/lioia/distributed-pagerank/pkg"
-	"github.com/lioia/distributed-pagerank/pkg/nodes"
-	"github.com/lioia/distributed-pagerank/pkg/services"
+	"github.com/lioia/distributed-pagerank/proto"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"
@@ -41,12 +40,12 @@ func main() {
 	pkg.FailOnError("Failed to open a channel to RabbitMQ", err)
 	defer ch.Close()
 
-	n := nodes.Node{
-		Phase: nodes.Wait,
-		Role:  nodes.Master,
+	n := pkg.Node{
+		Phase: pkg.Wait,
+		Role:  pkg.Master,
 		C:     0.85, // TODO: configurable variable
 		Data:  make(map[int32]float64),
-		Queue: nodes.Queue{
+		Queue: pkg.Queue{
 			Conn:    queueConn,
 			Channel: ch,
 		},
@@ -66,8 +65,8 @@ func main() {
 		log.Printf("No master node found at %s\n", master)
 	} else {
 		// Ther is a master node -> this node will be a worker
-		n.Role = nodes.Worker
-		n.Phase = nodes.Map // Worker start on Map phase
+		n.Role = pkg.Worker
+		n.Phase = pkg.Map // Worker start on Map phase
 		n.UpperLayer = master
 		n.C = constants.C
 		n.Threshold = constants.Threshold
@@ -85,8 +84,8 @@ func main() {
 	lis, err := net.Listen("tcp", fmt.Sprintf("%d", port))
 	pkg.FailOnError("Failed to listen", err)
 	server := grpc.NewServer()
-	services.RegisterNodeServer(server, &NodeServerImpl{Node: &n})
-	log.Printf("Starting %s node at %s\n", nodes.RoleToString(n.Role), lis.Addr().String())
+	proto.RegisterNodeServer(server, &pkg.NodeServerImpl{Node: &n})
+	log.Printf("Starting %s node at %s\n", pkg.RoleToString(n.Role), lis.Addr().String())
 	// Running gRPC server in a goroutine
 	go func() {
 		err = server.Serve(lis)

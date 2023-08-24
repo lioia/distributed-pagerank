@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/lioia/distributed-pagerank/pkg/services"
+	"github.com/lioia/distributed-pagerank/proto"
 )
 
 // R_(i + 1) (u) = c sum_(v in B_u) (R_i(v) / N_v) + (1 - c)E(u)
-func SingleNodePageRank(graph *services.Graph, c, threshold float64) {
+func SingleNodePageRank(graph *proto.Graph, c, threshold float64) {
 	for i := 0; i < 100; i++ {
 		sum := make(map[int32]float64)
 		for _, u := range graph.Graph {
@@ -34,7 +34,7 @@ func SingleNodePageRank(graph *services.Graph, c, threshold float64) {
 	}
 }
 
-func ComputeMap(u *services.GraphNode) map[int32]float64 {
+func ComputeMap(u *proto.GraphNode) map[int32]float64 {
 	contributions := make(map[int32]float64)
 	nV := float64(len(u.OutLinks))
 	for _, v := range u.OutLinks {
@@ -43,6 +43,6 @@ func ComputeMap(u *services.GraphNode) map[int32]float64 {
 	return contributions
 }
 
-func ComputeReduce(u *services.GraphNode, sum, c float64) float64 {
+func ComputeReduce(u *proto.GraphNode, sum, c float64) float64 {
 	return c*sum + (1-c)*u.EValue
 }

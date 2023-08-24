@@ -2,9 +2,9 @@ syntax = "proto3";
 
 import public "google/protobuf/empty.proto";
 
-option go_package = "github.com/lioia/distributed-pagerank/pkg/services";
+option go_package = "github.com/lioia/distributed-pagerank/proto";
 
-package services;
+package proto;
 
 service Node {
   rpc StateUpdate(google.protobuf.Empty) returns (State) {}

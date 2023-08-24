@@ -9,13 +9,16 @@
 ## Building
 
 - Protocol Buffers
-    ```bash
-    protoc \
-    --go_out=. \
-    --go_opt=paths=source_relative \
-    --go-grpc_out=. \
-    --go-grpc_opt=paths=source_relative \
-    pkg/services/node.proto
-    ```
-- Server:
+  ```bash
+  protoc \
+  --go_out=. \
+  --go_opt=paths=source_relative \
+  --go-grpc_out=. \
+  --go-grpc_opt=paths=source_relative \
+  proto/node.proto
+  ```
+- Server
+  ```bash
+  go build -o build/server cmd/server/main.go
+  ```
 - Client:

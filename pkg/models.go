@@ -1,7 +1,7 @@
-package nodes
+package pkg
 
 import (
-	"github.com/lioia/distributed-pagerank/pkg/services"
+	"github.com/lioia/distributed-pagerank/proto"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -33,7 +33,7 @@ type Node struct {
 	Others     []string          // Other nodes in the network
 	Queue      Queue             // Queue information
 	UpperLayer string            // Node to contact (worker -> master; master -> client)
-	Graph      *services.Graph   // Graph Structure
+	Graph      *proto.Graph      // Graph Structure
 	Jobs       int32             // Number of jobs dispatched to worker nodes
 	Responses  int32             // Number of responses received
 	Data       map[int32]float64 // Intermediate data received from map/reduce
