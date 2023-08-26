@@ -16,28 +16,28 @@ func (n *Node) masterUpdate() error {
 	var err error
 loop:
 	for {
-		switch n.Phase {
-		case Map:
+		switch n.State.Phase {
+		case int32(Map):
 			if n.Jobs == n.Responses {
-				n.Phase = Collect
+				n.State.Phase = int32(Collect)
 				break
 			}
 			if err = masterReadQueue(n); err != nil {
 				break loop
 			}
-		case Collect:
+		case int32(Collect):
 			if err = masterCollect(n); err != nil {
 				break loop
 			}
-		case Reduce:
+		case int32(Reduce):
 			if n.Jobs == n.Responses {
-				n.Phase = Convergence
+				n.State.Phase = int32(Convergence)
 				break
 			}
 			if err = masterReadQueue(n); err != nil {
 				break loop
 			}
-		case Convergence:
+		case int32(Convergence):
 			if err = masterConvergence(n); err != nil {
 				break loop
 			}
@@ -47,19 +47,19 @@ loop:
 }
 
 func masterCollect(n *Node) error {
-	if len(n.Others) == 0 {
+	if len(n.State.Others) == 0 {
 		ranks := make(map[int32]float64)
-		for id, node := range n.Graph.Graph {
+		for id, node := range n.State.Graph.Graph {
 			ranks[id] = n.C*n.Data[id] + (1-n.C)*node.EValue
 		}
-		n.Phase = Convergence
+		n.State.Phase = int32(Convergence)
 		return nil
 	}
 	// Divide Graph in SubGraphs
-	numberOfJobs := len(n.Data) / len(n.Others)
+	numberOfJobs := len(n.Data) / len(n.State.Others)
 	subGraphs := make([]*proto.Graph, numberOfJobs)
 	index := 0
-	for id, node := range n.Graph.Graph {
+	for id, node := range n.State.Graph.Graph {
 		subGraphs[index/numberOfJobs].Graph[id] = node
 		index += 1
 	}
@@ -97,34 +97,35 @@ func masterCollect(n *Node) error {
 	n.Jobs = int32(numberOfJobs)
 	n.Responses = 0
 	n.Data = make(map[int32]float64)
-	n.Phase = Reduce
+	n.State.Phase = int32(Reduce)
 	return nil
 }
 
 func masterConvergence(n *Node) error {
 	convergence := 0.0
 	for id, newRank := range n.Data {
-		oldRank := n.Graph.Graph[id].Rank
+		oldRank := n.State.Graph.Graph[id].Rank
 		convergence += math.Abs(newRank - oldRank)
 		// After calculating the convergence value, it can be safely updated
-		n.Graph.Graph[id].Rank = newRank
+		n.State.Graph.Graph[id].Rank = newRank
 	}
 	// Does not converge -> iterate
 	if convergence > n.Threshold {
 		// Start new computation with updated pagerank values
 		return n.WriteGraphToQueue()
 	} else {
-		client, err := ClientCall(n.UpperLayer)
+		// Send results to client
+		client, err := ClientCall(n.State.Client)
 		if err != nil {
 			return err
 		}
-		_, err = client.Client.SendGraph(client.Ctx, n.Graph)
+		_, err = client.Client.SendGraph(client.Ctx, n.State.Graph)
 		if err != nil {
 			return err
 		}
 		// Node Reset
-		n.Phase = Wait
-		n.Graph = nil
+		n.State.Phase = int32(Wait)
+		n.State.Graph = nil
 		n.Jobs = 0
 		n.Responses = 0
 		n.Data = make(map[int32]float64)
@@ -138,10 +139,10 @@ func (n *Node) WriteGraphToQueue() error {
 		return nil
 	}
 	// Divide Graph in SubGraphs
-	numberOfSubGraphs := len(n.Graph.Graph) / len(n.Others)
+	numberOfSubGraphs := len(n.State.Graph.Graph) / len(n.State.Others)
 	subGraphs := make([]*proto.Graph, numberOfSubGraphs)
 	index := 0
-	for id, node := range n.Graph.Graph {
+	for id, node := range n.State.Graph.Graph {
 		subGraphs[index/numberOfSubGraphs].Graph[id] = node
 		index += 1
 	}
@@ -171,7 +172,7 @@ func (n *Node) WriteGraphToQueue() error {
 		}
 	}
 	// Switch to Map phase
-	n.Phase = Map
+	n.State.Phase = int32(Map)
 	n.Jobs = int32(numberOfSubGraphs)
 	return nil
 }

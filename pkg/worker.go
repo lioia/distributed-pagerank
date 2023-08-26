@@ -97,3 +97,61 @@ func (n *Node) workerReduce(data *proto.Reduce) map[int32]float64 {
 	}
 	return ranks
 }
+
+func (n *Node) WorkerHealthCheck() {
+	master, err := NodeCall(n.Master)
+	if err != nil {
+		// Master didn't respond -> assuming crash
+		n.workerCandidacy()
+	}
+	defer master.Conn.Close()
+	defer master.CancelFunc()
+	_, err = master.Client.HealthCheck(master.Ctx, nil)
+	// No error detected -> master is still valid
+	if err == nil {
+		return
+	}
+	// Master didn't respond -> assuming crash
+	n.workerCandidacy()
+}
+
+func (n *Node) workerCandidacy() {
+	candidacy := &proto.Candidacy{
+		Connection: n.Connection,
+		Timestamp:  time.Now().UnixMilli(),
+	}
+	n.Candidacy = candidacy.Timestamp
+	crashedWorkers := make(map[int]bool)
+	elected := true
+	for i, v := range n.State.Others {
+		worker, err := NodeCall(v)
+		if err != nil {
+			crashedWorkers[i] = true
+			continue
+		}
+		defer worker.Conn.Close()
+		defer worker.CancelFunc()
+		ack, err := worker.Client.MasterCandidate(worker.Ctx, candidacy)
+		if err != nil {
+			crashedWorkers[i] = true
+			continue
+		}
+		// NACK -> there is an older candidacy
+		if !ack.Ack {
+			n.Master = ack.Candidate
+			elected = false
+			break
+		}
+	}
+	// Remove crashed workers from state
+	var newWorkers []string
+	for i, v := range n.State.Others {
+		if !crashedWorkers[i] {
+			newWorkers = append(newWorkers, v)
+		}
+	}
+	n.State.Others = newWorkers
+	if elected {
+		n.Role = Master
+	}
+}

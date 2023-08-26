@@ -19,6 +19,7 @@ type Client[T interface{}] struct {
 	CancelFunc context.CancelFunc
 }
 
+// User has to `defer CancelFunc()` and `defer Conn.Close()`
 func NodeCall(url string) (Client[proto.NodeClient], error) {
 	var clientInfo Client[proto.NodeClient]
 	conn, err := grpc.Dial(
@@ -29,9 +30,6 @@ func NodeCall(url string) (Client[proto.NodeClient], error) {
 		return clientInfo, err
 	}
 	client := proto.NewNodeClient(conn)
-	if err != nil {
-		return clientInfo, err
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	clientInfo.Conn = conn
 	clientInfo.Client = client
@@ -40,6 +38,7 @@ func NodeCall(url string) (Client[proto.NodeClient], error) {
 	return clientInfo, nil
 }
 
+// User has to `defer CancelFunc()` and `defer Conn.Close()`
 func ClientCall(url string) (Client[proto.ApiClient], error) {
 	var clientInfo Client[proto.ApiClient]
 	conn, err := grpc.Dial(
@@ -50,9 +49,6 @@ func ClientCall(url string) (Client[proto.ApiClient], error) {
 		return clientInfo, err
 	}
 	client := proto.NewApiClient(conn)
-	if err != nil {
-		return clientInfo, err
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	clientInfo.Conn = conn
 	clientInfo.Client = client

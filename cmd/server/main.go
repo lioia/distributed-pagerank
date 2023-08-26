@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
 	"github.com/lioia/distributed-pagerank/pkg"
 	"github.com/lioia/distributed-pagerank/proto"
@@ -41,10 +42,11 @@ func main() {
 	defer ch.Close()
 
 	n := pkg.Node{
-		Phase: pkg.Wait,
-		Role:  pkg.Master,
-		C:     0.85, // TODO: configurable variable
-		Data:  make(map[int32]float64),
+		State:     &proto.State{Phase: int32(pkg.Wait)},
+		Role:      pkg.Master,
+		C:         0.85,  // TODO: configurable variable
+		Threshold: 0.001, // TODO: configurable variable
+		Data:      make(map[int32]float64),
 		Queue: pkg.Queue{
 			Conn:    queueConn,
 			Channel: ch,
@@ -58,7 +60,7 @@ func main() {
 	defer masterClient.CancelFunc()
 	defer masterClient.Conn.Close()
 	pkg.FailOnError("Could not create connection to the masterClient node", err)
-	constants, err := masterClient.Client.NodeJoin(masterClient.Ctx, nil)
+	join, err := masterClient.Client.NodeJoin(masterClient.Ctx, nil)
 	if err != nil {
 		// There is no node at the address -> creating a new network
 		// This node will be the master
@@ -66,12 +68,12 @@ func main() {
 	} else {
 		// Ther is a master node -> this node will be a worker
 		n.Role = pkg.Worker
-		n.Phase = pkg.Map // Worker start on Map phase
-		n.UpperLayer = master
-		n.C = constants.C
-		n.Threshold = constants.Threshold
-		workQueueName = constants.WorkQueue
-		resultQueueName = constants.ResultQueue
+		n.Master = master
+		n.State = join.State
+		n.C = join.C
+		n.Threshold = join.Threshold
+		workQueueName = join.WorkQueue
+		resultQueueName = join.ResultQueue
 	}
 	work, err := pkg.DeclareQueue(workQueueName, ch)
 	pkg.FailOnError("Failed to declare 'work' queue", err)
@@ -91,14 +93,19 @@ func main() {
 		err = server.Serve(lis)
 		pkg.FailOnError("Failed to serve", err)
 	}()
+	// Node update (computation phase)
 	go func() {
 		if err = n.Update(); err != nil {
 			log.Fatalf("Node update error: %v", err)
 		}
-		// for {
-		// TODO: state update
-		// Wait for x ms
-		// time.Sleep(500 * time.Millisecond) // TODO: 500: configurable
-		// }
 	}()
+	if n.Role == pkg.Worker {
+		// Worker Health Check
+		go func() {
+			for {
+				n.WorkerHealthCheck()
+				time.Sleep(5 * time.Second) // TODO: configurable parameters
+			}
+		}()
+	}
 }

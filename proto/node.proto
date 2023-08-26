@@ -1,15 +1,17 @@
 syntax = "proto3";
 
-import public "google/protobuf/empty.proto";
+import "google/protobuf/empty.proto";
 
 option go_package = "github.com/lioia/distributed-pagerank/proto";
 
 package proto;
 
 service Node {
-  rpc StateUpdate(google.protobuf.Empty) returns (State) {}
-  rpc NodeJoin(google.protobuf.Empty) returns (Constants) {}
+  rpc HealthCheck(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc StateUpdate(State) returns (google.protobuf.Empty) {}
+  rpc NodeJoin(google.protobuf.Empty) returns (Join) {}
   rpc UploadGraph(GraphUpload) returns (Graph) {}
+  rpc MasterCandidate(Candidacy) returns (Ack) {}
 }
 
 service Api {
@@ -18,20 +20,21 @@ service Api {
 
 message State {
   int32 phase = 1;
-  int32 role = 2;
-  Graph graph = 6;
-  repeated string others = 7;
+  Graph graph = 3;
+  string client = 4;
+  repeated string others = 5;
 }
 
-message Constants {
+message Join {
   string workQueue = 1;
   string resultQueue = 2;
   double c = 3;
   double threshold = 4;
+  State state = 5;
 }
 
 message GraphUpload {
-  string fromConnection = 1;
+  string from = 1;
   bytes contents = 2;
 }
 
@@ -55,4 +58,14 @@ message Job {
 message Reduce {
   repeated GraphNode nodes = 1;
   map<int32, double> sums = 2;
+}
+
+message Candidacy {
+  string connection = 1;
+  int64 timestamp = 2;
+}
+
+message Ack {
+  bool ack = 1;         // Candidate recognized as new master
+  string candidate = 2; // ACK = false -> candidate: new master info
 }
