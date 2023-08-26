@@ -42,11 +42,13 @@ func main() {
 	defer ch.Close()
 
 	n := pkg.Node{
-		State:     &proto.State{Phase: int32(pkg.Wait)},
+		State: &proto.State{
+			Phase: int32(pkg.Wait),
+			Data:  make(map[int32]float64),
+		},
 		Role:      pkg.Master,
 		C:         0.85,  // TODO: configurable variable
 		Threshold: 0.001, // TODO: configurable variable
-		Data:      make(map[int32]float64),
 		Queue: pkg.Queue{
 			Conn:    queueConn,
 			Channel: ch,

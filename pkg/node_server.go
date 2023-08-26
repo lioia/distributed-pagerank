@@ -56,6 +56,7 @@ func (s *NodeServerImpl) UploadGraph(_ context.Context, in *proto.GraphUpload) (
 	}
 	s.Node.State.Client = in.From
 	err = s.Node.WriteGraphToQueue()
+	s.Node.masterSendUpdateToWorkers()
 	// Graph was successfully uploaded and computation has started
 	return nil, err
 }

@@ -25,17 +25,14 @@ const (
 )
 
 type Node struct {
-	State      *proto.State      // Shared node state
-	Role       Role              // What this node has to do
-	C          float64           // C-value in PageRank algorithm
-	Threshold  float64           // Threshold value used in PageRank algorithm
-	Connection string            // This node connection information
-	Queue      Queue             // Queue information
-	Master     string            // Master node (set if this node is a worker)
-	Candidacy  int64             // Timestamp of new candidacy (0: no candidate)
-	Jobs       int32             // Number of jobs dispatched to worker nodes
-	Responses  int32             // Number of responses received TODO: remove
-	Data       map[int32]float64 // Intermediate data received from map/reduce
+	State      *proto.State // Shared node state
+	Role       Role         // What this node has to do
+	C          float64      // C-value in PageRank algorithm
+	Threshold  float64      // Threshold value used in PageRank algorithm
+	Connection string       // This node connection information
+	Queue      Queue        // Queue information
+	Master     string       // Master node (set if this node is a worker)
+	Candidacy  int64        // Timestamp of new candidacy (0: no candidate)
 }
 
 type Queue struct {

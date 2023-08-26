@@ -19,10 +19,12 @@ service Api {
 }
 
 message State {
-  int32 phase = 1;
-  Graph graph = 3;
-  string client = 4;
-  repeated string others = 5;
+  int32 phase = 1;             // Current Node Phase
+  Graph graph = 2;             // Graph to be computed
+  string client = 3;           // Client that requested the computation
+  int32 jobs = 4;              // Number of jobs added to the queue
+  map<int32, double> data = 5; // Collected data from map or reduce phase
+  repeated string others = 6;  // Other nodes in the network
 }
 
 message Join {

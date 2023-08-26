@@ -2,8 +2,8 @@ package pkg
 
 import (
 	"context"
-	"log"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/lioia/distributed-pagerank/proto"
@@ -18,24 +18,26 @@ loop:
 	for {
 		switch n.State.Phase {
 		case int32(Map):
-			if n.Jobs == n.Responses {
+			if n.State.Jobs == int32(n.Queue.Work.Messages) {
+				if err = masterReadQueue(n); err != nil {
+					break loop
+				}
+				n.masterSendUpdateToWorkers()
 				n.State.Phase = int32(Collect)
 				break
-			}
-			if err = masterReadQueue(n); err != nil {
-				break loop
 			}
 		case int32(Collect):
 			if err = masterCollect(n); err != nil {
 				break loop
 			}
 		case int32(Reduce):
-			if n.Jobs == n.Responses {
+			if n.State.Jobs == int32(n.Queue.Work.Messages) {
+				if err = masterReadQueue(n); err != nil {
+					break loop
+				}
+				n.masterSendUpdateToWorkers()
 				n.State.Phase = int32(Convergence)
 				break
-			}
-			if err = masterReadQueue(n); err != nil {
-				break loop
 			}
 		case int32(Convergence):
 			if err = masterConvergence(n); err != nil {
@@ -50,13 +52,13 @@ func masterCollect(n *Node) error {
 	if len(n.State.Others) == 0 {
 		ranks := make(map[int32]float64)
 		for id, node := range n.State.Graph.Graph {
-			ranks[id] = n.C*n.Data[id] + (1-n.C)*node.EValue
+			ranks[id] = n.C*n.State.Data[id] + (1-n.C)*node.EValue
 		}
 		n.State.Phase = int32(Convergence)
 		return nil
 	}
 	// Divide Graph in SubGraphs
-	numberOfJobs := len(n.Data) / len(n.State.Others)
+	numberOfJobs := len(n.State.Data) / len(n.State.Others)
 	subGraphs := make([]*proto.Graph, numberOfJobs)
 	index := 0
 	for id, node := range n.State.Graph.Graph {
@@ -70,7 +72,7 @@ func masterCollect(n *Node) error {
 		reduce := proto.Reduce{}
 		for id, v := range subGraph.Graph {
 			reduce.Nodes = append(reduce.Nodes, v)
-			reduce.Sums[id] = n.Data[id]
+			reduce.Sums[id] = n.State.Data[id]
 		}
 		job := proto.Job{Type: 1, ReduceData: &reduce}
 		data, err := protobuf.Marshal(&job)
@@ -94,16 +96,15 @@ func masterCollect(n *Node) error {
 		}
 	}
 	// Switch to Reduce phase
-	n.Jobs = int32(numberOfJobs)
-	n.Responses = 0
-	n.Data = make(map[int32]float64)
+	n.State.Jobs = int32(numberOfJobs)
+	n.State.Data = make(map[int32]float64)
 	n.State.Phase = int32(Reduce)
 	return nil
 }
 
 func masterConvergence(n *Node) error {
 	convergence := 0.0
-	for id, newRank := range n.Data {
+	for id, newRank := range n.State.Data {
 		oldRank := n.State.Graph.Graph[id].Rank
 		convergence += math.Abs(newRank - oldRank)
 		// After calculating the convergence value, it can be safely updated
@@ -124,11 +125,8 @@ func masterConvergence(n *Node) error {
 			return err
 		}
 		// Node Reset
-		n.State.Phase = int32(Wait)
-		n.State.Graph = nil
-		n.Jobs = 0
-		n.Responses = 0
-		n.Data = make(map[int32]float64)
+		n.State = &proto.State{Phase: int32(Wait)}
+		n.masterSendUpdateToWorkers()
 	}
 
 	return nil
@@ -173,8 +171,46 @@ func (n *Node) WriteGraphToQueue() error {
 	}
 	// Switch to Map phase
 	n.State.Phase = int32(Map)
-	n.Jobs = int32(numberOfSubGraphs)
+	n.State.Jobs = int32(numberOfSubGraphs)
 	return nil
+}
+
+// Master send state to all workers
+func (n *Node) masterSendUpdateToWorkers() {
+	var wg sync.WaitGroup
+	crashed := make(chan int)
+	for i, v := range n.State.Others {
+		wg.Add(1)
+		go func(wg *sync.WaitGroup, i int, url string, crashed chan int) {
+			worker, err := NodeCall(url)
+			if err != nil {
+				crashed <- i
+			}
+			_, err = worker.Client.StateUpdate(worker.Ctx, n.State)
+			if err != nil {
+				crashed <- i
+			}
+		}(&wg, i, v, crashed)
+	}
+
+	// Wait for all goroutines to finish
+	wg.Done()
+	// Close to no cause any leaks
+	close(crashed)
+
+	// Collect crashed
+	crashedWorkers := make(map[int]bool)
+	for i := range crashed {
+		crashedWorkers[i] = true
+	}
+	// Remove crashed
+	var newWorkers []string
+	for i, v := range n.State.Others {
+		if !crashedWorkers[i] {
+			newWorkers = append(newWorkers, v)
+		}
+	}
+	n.State.Others = newWorkers
 }
 
 func masterReadQueue(n *Node) error {
@@ -189,33 +225,26 @@ func masterReadQueue(n *Node) error {
 		nil,                 // args
 	)
 	FailOnError("Could not register a consumer", err)
-	var forever chan struct{}
 
-	// Queue Message Handler
-	go func() {
-		for d := range msgs {
-			// Get data from bytes
-			var result proto.MapIntDouble
-			err := protobuf.Unmarshal(d.Body, &result)
-			if err != nil {
-				FailOnNack(d, err)
-				continue
-			}
-			n.Responses += 1
-			for id, v := range result.Map {
-				n.Data[id] += v
-			}
-
-			// Ack
-			if err := d.Ack(false); err != nil {
-				FailOnNack(d, err)
-				continue
-			}
+	for msg := range msgs {
+		var result proto.MapIntDouble
+		err := protobuf.Unmarshal(msg.Body, &result)
+		// FIXME: better error handling
+		if err != nil {
+			FailOnNack(msg, err)
+			continue
 		}
-	}()
+		for id, v := range result.Map {
+			n.State.Data[id] += v
+		}
 
-	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
-	<-forever
+		// Ack
+		// FIXME: better error handling
+		if err := msg.Ack(false); err != nil {
+			FailOnNack(msg, err)
+			continue
+		}
+	}
 
 	return nil
 }
