@@ -38,7 +38,7 @@ func (s *ApiServerImpl) SendGraph(_ context.Context, in *proto.GraphUpload) (*pr
 func (s *ApiServerImpl) ReceiveResults(_ context.Context, in *proto.Graph) (*emptypb.Empty, error) {
 	fmt.Println("Received results:")
 	for id, v := range in.Graph {
-		fmt.Printf("%d -> %d\n", id, v)
+		fmt.Printf("%d -> %f\n", id, v.Rank)
 	}
 	return &emptypb.Empty{}, nil
 }

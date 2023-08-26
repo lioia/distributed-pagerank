@@ -116,7 +116,7 @@ func masterConvergence(n *Node) error {
 		return n.WriteGraphToQueue()
 	} else {
 		// Send results to client
-		client, err := ClientCall(n.State.Client)
+		client, err := ApiCall(n.State.Client)
 		if err != nil {
 			return err
 		}

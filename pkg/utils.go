@@ -39,7 +39,7 @@ func NodeCall(url string) (Client[proto.NodeClient], error) {
 }
 
 // User has to `defer CancelFunc()` and `defer Conn.Close()`
-func ClientCall(url string) (Client[proto.ApiClient], error) {
+func ApiCall(url string) (Client[proto.ApiClient], error) {
 	var clientInfo Client[proto.ApiClient]
 	conn, err := grpc.Dial(
 		url,

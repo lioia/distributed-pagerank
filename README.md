@@ -22,3 +22,6 @@
   go build -o build/server cmd/server/main.go
   ```
 - Client:
+  ```bash
+  go build -o build/client cmd/client/main.go
+  ```
