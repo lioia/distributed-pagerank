@@ -84,14 +84,14 @@ func main() {
 	pkg.FailOnError("Failed to declare 'result' queue", err)
 	n.Queue.Result = &result
 
-	// Creating gRPC server
-	lis, err := net.Listen("tcp", fmt.Sprintf("%d", port))
-	pkg.FailOnError("Failed to listen", err)
-	server := grpc.NewServer()
-	proto.RegisterNodeServer(server, &pkg.NodeServerImpl{Node: &n})
-	log.Printf("Starting %s node at %s\n", pkg.RoleToString(n.Role), lis.Addr().String())
-	// Running gRPC server in a goroutine
+	// Running gRPC server for internal network communication in a goroutine
 	go func() {
+		// Creating gRPC server
+		lis, err := net.Listen("tcp", fmt.Sprintf("%d", port))
+		pkg.FailOnError("Failed to listen", err)
+		server := grpc.NewServer()
+		proto.RegisterNodeServer(server, &pkg.NodeServerImpl{Node: &n})
+		log.Printf("Starting %s node at %s\n", pkg.RoleToString(n.Role), lis.Addr().String())
 		err = server.Serve(lis)
 		pkg.FailOnError("Failed to serve", err)
 	}()
@@ -101,6 +101,16 @@ func main() {
 			log.Fatalf("Node update error: %v", err)
 		}
 	}()
+	if n.Role == pkg.Master {
+		// Running gRPC server for client communication in a goroutine
+		lis, err := net.Listen("tcp", "0")
+		pkg.FailOnError("Failed to listen", err)
+		s := grpc.NewServer()
+		proto.RegisterApiServer(s, &pkg.ApiServerImpl{Node: &n})
+		log.Printf("Starting api server at %s\n", lis.Addr().String())
+		err = s.Serve(lis)
+		pkg.FailOnError("Failed to serve", err)
+	}
 	if n.Role == pkg.Worker {
 		// Worker Health Check
 		go func() {

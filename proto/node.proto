@@ -6,16 +6,18 @@ option go_package = "github.com/lioia/distributed-pagerank/proto";
 
 package proto;
 
+// Internal network node communication
 service Node {
   rpc HealthCheck(google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc StateUpdate(State) returns (google.protobuf.Empty) {}
   rpc NodeJoin(google.protobuf.Empty) returns (Join) {}
-  rpc UploadGraph(GraphUpload) returns (Graph) {}
   rpc MasterCandidate(Candidacy) returns (Ack) {}
 }
 
+// Master-Client communication
 service Api {
-  rpc SendGraph(Graph) returns (google.protobuf.Empty) {}
+  rpc SendGraph(GraphUpload) returns (Graph) {}
+  rpc ReceiveResults(Graph) returns (google.protobuf.Empty) {}
 }
 
 message State {

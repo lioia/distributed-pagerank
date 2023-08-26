@@ -39,28 +39,6 @@ func (s *NodeServerImpl) NodeJoin(context.Context, *emptypb.Empty) (*proto.Join,
 	return &constants, nil
 }
 
-// From client to master Node
-// TODO: maybe this can be moved to another service that shares *Node
-func (s *NodeServerImpl) UploadGraph(_ context.Context, in *proto.GraphUpload) (*proto.Graph, error) {
-	if s.Node.Role != Master {
-		return nil, fmt.Errorf("This node cannot fulfill this request. Contact master node at: %s", s.Node.Master)
-	}
-	graph, err := LoadGraphFromBytes(in.Contents)
-	if err != nil {
-		return nil, fmt.Errorf("Could not load graph: %v", err)
-	}
-	// No other node in the network -> calculating PageRank on this node
-	if len(s.Node.State.Others) == 0 {
-		SingleNodePageRank(graph, s.Node.C, s.Node.Threshold)
-		return graph, nil
-	}
-	s.Node.State.Client = in.From
-	err = s.Node.WriteGraphToQueue()
-	s.Node.masterSendUpdateToWorkers()
-	// Graph was successfully uploaded and computation has started
-	return nil, err
-}
-
 // From worker node to worker nodes to announce a new candidacy
 func (s *NodeServerImpl) MasterCandidate(_ context.Context, in *proto.Candidacy) (*proto.Ack, error) {
 	var ack proto.Ack

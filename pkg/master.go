@@ -120,7 +120,7 @@ func masterConvergence(n *Node) error {
 		if err != nil {
 			return err
 		}
-		_, err = client.Client.SendGraph(client.Ctx, n.State.Graph)
+		_, err = client.Client.ReceiveResults(client.Ctx, n.State.Graph)
 		if err != nil {
 			return err
 		}
