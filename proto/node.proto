@@ -39,7 +39,9 @@ message Join {
 
 message GraphUpload {
   string from = 1;
-  bytes contents = 2;
+  double c = 2;
+  double threshold = 3;
+  bytes contents = 4;
 }
 
 message MapIntDouble { map<int32, double> map = 1; }

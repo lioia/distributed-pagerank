@@ -1,10 +1,12 @@
 package main
 
 import (
-	"flag"
+	"errors"
 	"fmt"
 	"log"
 	"net"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/lioia/distributed-pagerank/pkg"
@@ -14,24 +16,12 @@ import (
 	"google.golang.org/grpc"
 )
 
-var port int          // Port where the node will start
-var master string     // Expected connection string of the master node
-var c float64         // PageRank `c` parameter
-var threshold float64 // PageRank threshold
-var queue string      // Queue connection string
-
-func init() {
-	flag.IntVar(&port, "port", 0, "Port") // 0: automatic port assignment
-	flag.StringVar(&master, "master", "127.0.0.1:1234", "Master Connection")
-	flag.Float64Var(&c, "c", 0.85, "c variable")
-	flag.Float64Var(&threshold, "threshold", 0.0001, "Threshold")
-	flag.StringVar(&queue, "queue", "amqp://guest:guest@localhost:5672", "Queue Connection String")
-}
+// Default value
+const HEALTH_CHECK_DEFAULT = 5000
 
 func main() {
-	flag.Parse()
-
-	// TODO: read configuration file
+	port, master, queue, healthCheck, err := ReadEnvVars()
+	pkg.FailOnError("Failed to read environment variables", err)
 
 	// Connect to RabbitMQ
 	queueConn, err := amqp.Dial(queue)
@@ -46,9 +36,7 @@ func main() {
 			Phase: int32(pkg.Wait),
 			Data:  make(map[int32]float64),
 		},
-		Role:      pkg.Master,
-		C:         0.85,  // TODO: configurable variable
-		Threshold: 0.001, // TODO: configurable variable
+		Role: pkg.Master,
 		Queue: pkg.Queue{
 			Conn:    queueConn,
 			Channel: ch,
@@ -116,8 +104,47 @@ func main() {
 		go func() {
 			for {
 				n.WorkerHealthCheck()
-				time.Sleep(5 * time.Second) // TODO: configurable parameters
+				time.Sleep(time.Duration(healthCheck) * time.Millisecond)
 			}
 		}()
 	}
+}
+
+// Returns, in order:
+// - port: where the node will start - 0 for automatic port assignment
+// - master: expected address of the master node
+// - queue: RabbitMQ connection string
+// - healthCheck: how often a worker node contact the master node for health check
+// - err: if anything goes wrong
+func ReadEnvVars() (port int, master string, queue string, healthCheckMilli int, err error) {
+	master = os.Getenv("MASTER")
+	if master == "" {
+		err = errors.New("MASTER not set")
+		return
+	}
+	queue = os.Getenv("QUEUE")
+	if queue == "" {
+		err = errors.New("QUEUE not set")
+		return
+	}
+	portString := os.Getenv("PORT")
+	if portString == "" {
+		err = errors.New("PORT not set")
+		return
+	}
+	port, err = strconv.Atoi(portString)
+	if err != nil {
+		return
+	}
+	healthCheckMilliString := os.Getenv("HEALTH_CHECK")
+	if healthCheckMilliString == "" {
+		healthCheckMilli = HEALTH_CHECK_DEFAULT
+		return
+	}
+	healthCheckMilli, err = strconv.Atoi(healthCheckMilliString)
+	if err != nil {
+		healthCheckMilli = HEALTH_CHECK_DEFAULT
+		log.Printf("Could not convert %s in an integer. Using default value of %d\n", healthCheckMilliString, HEALTH_CHECK_DEFAULT)
+	}
+	return
 }

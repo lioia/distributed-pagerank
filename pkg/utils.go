@@ -1,11 +1,14 @@
 package pkg
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
+	"github.com/lioia/distributed-pagerank/pkg"
 	"github.com/lioia/distributed-pagerank/proto"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"
@@ -101,4 +104,18 @@ func EmptyQueue(ch *amqp.Channel, name string) {
 			log.Printf("Failed to acknowledge message: %v", err)
 		}
 	}
+}
+
+func ReadFromStdin(question string) (string, error) {
+	fmt.Print(question)
+	reader := bufio.NewReader(os.Stdin)
+	return reader.ReadString('\n')
+}
+
+func ReadFromStdinAndFail(question string) string {
+	value, err := ReadFromStdin(question)
+	if err != nil {
+		pkg.FailOnError("Coult not read from stdin", err)
+	}
+	return value
 }
