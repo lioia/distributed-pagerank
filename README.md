@@ -6,6 +6,10 @@
   - `protoc`: required for compilation
   - `protobuf-devel` (or equivalent): required to import common message types
 
+## Getting Started
+
+Setup  `.env` following `.env.example`
+
 ## Building
 
 - Protocol Buffers
