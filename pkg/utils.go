@@ -8,7 +8,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/lioia/distributed-pagerank/pkg"
 	"github.com/lioia/distributed-pagerank/proto"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"
@@ -115,7 +114,7 @@ func ReadFromStdin(question string) (string, error) {
 func ReadFromStdinAndFail(question string) string {
 	value, err := ReadFromStdin(question)
 	if err != nil {
-		pkg.FailOnError("Coult not read from stdin", err)
+		FailOnError("Coult not read from stdin", err)
 	}
 	return value
 }
