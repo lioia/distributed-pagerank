@@ -129,8 +129,7 @@ func ReadEnvVars() (port int, master string, queue string, healthCheckMilli int,
 	}
 	portString := os.Getenv("PORT")
 	if portString == "" {
-		err = errors.New("PORT not set")
-		return
+		portString = "0"
 	}
 	port, err = strconv.Atoi(portString)
 	if err != nil {

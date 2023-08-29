@@ -1,0 +1,34 @@
+services:
+  master:
+    build: .
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - "MASTER=master"
+      - "PORT=${PORT}"
+      - "QUEUE=amqp://${RABBIT_USER:-guest}:${RABBIT_PASSWORD:-guest}@${RABBIT_HOST:-rabbitmq}:5672/"
+  worker:
+    build: .
+    deploy:
+      replicas: 4
+    depends_on:
+      - master
+      - rabbitmq
+    environment:
+      - "MASTER=${MASTER}"
+      - "QUEUE=amqp://${RABBIT_USER:-guest}:${RABBIT_PASSWORD:-guest}@${RABBIT_HOST:-rabbitmq}:5672/"
+      - "HEALTH_CHECK=${HEALTH_CHECK}"
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - "RABBITMQ_DEFAULT_USER=${RABBIT_USER}"
+      - "RABBITMQ_DEFAULT_PASS=${RABBIT_PASSWORD}"
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
