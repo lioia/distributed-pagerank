@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/lioia/distributed-pagerank/proto"
@@ -32,7 +33,7 @@ func NodeCall(url string) (Client[proto.NodeClient], error) {
 		return clientInfo, err
 	}
 	client := proto.NewNodeClient(conn)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	clientInfo.Conn = conn
 	clientInfo.Client = client
 	clientInfo.Ctx = ctx
@@ -51,7 +52,7 @@ func ApiCall(url string) (Client[proto.ApiClient], error) {
 		return clientInfo, err
 	}
 	client := proto.NewApiClient(conn)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	clientInfo.Conn = conn
 	clientInfo.Client = client
 	clientInfo.Ctx = ctx
@@ -116,5 +117,5 @@ func ReadFromStdinAndFail(question string) string {
 	if err != nil {
 		FailOnError("Coult not read from stdin", err)
 	}
-	return value
+	return strings.TrimRight(value, "\n")
 }

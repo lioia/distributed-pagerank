@@ -3,6 +3,7 @@ package pkg
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/lioia/distributed-pagerank/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -15,6 +16,7 @@ type ApiServerImpl struct {
 
 // From client to master
 func (s *ApiServerImpl) SendGraph(_ context.Context, in *proto.GraphUpload) (*proto.Graph, error) {
+	log.Printf("Received from: %s\n", in.From)
 	if s.Node.Role != Master {
 		return nil, fmt.Errorf("This node cannot fulfill this request. Contact master node at: %s", s.Node.Master)
 	}

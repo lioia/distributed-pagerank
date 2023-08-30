@@ -29,3 +29,8 @@ Setup  `.env` following `.env.example`
   ```bash
   go build -o build/client cmd/client/main.go
   ```
+
+## Notes 
+
+- When running on localhost, using Docker Compose, the client can connect to the 
+  API server directly by the port number: e.g. `:<port>`

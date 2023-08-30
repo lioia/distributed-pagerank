@@ -5,9 +5,13 @@ services:
       rabbitmq:
         condition: service_healthy
     environment:
-      - "MASTER=master"
-      - "PORT=${PORT}"
+      - "MASTER=${MASTER}"
+      - "NODE_PORT=${NODE_PORT}"
+      - "API_PORT=${API_PORT}"
       - "QUEUE=amqp://${RABBIT_USER:-guest}:${RABBIT_PASSWORD:-guest}@${RABBIT_HOST:-rabbitmq}:5672/"
+    ports:
+      - "1234:${NODE_PORT}"
+      - "5678:${API_PORT}"
   worker:
     build: .
     deploy:
@@ -19,11 +23,14 @@ services:
       - "MASTER=${MASTER}"
       - "QUEUE=amqp://${RABBIT_USER:-guest}:${RABBIT_PASSWORD:-guest}@${RABBIT_HOST:-rabbitmq}:5672/"
       - "HEALTH_CHECK=${HEALTH_CHECK}"
+      - "NODE_PORT=0" # automatic port assignment
+      - "API_PORT=0"
   rabbitmq:
     image: rabbitmq:management-alpine
     ports:
       - "5672:5672"
       - "15672:15672"
+    # TODO: probably password and user does not work
     environment:
       - "RABBITMQ_DEFAULT_USER=${RABBIT_USER}"
       - "RABBITMQ_DEFAULT_PASS=${RABBIT_PASSWORD}"

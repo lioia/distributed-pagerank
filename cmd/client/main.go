@@ -49,7 +49,7 @@ func main() {
 	bytes, err := os.ReadFile(file)
 	pkg.FailOnError("Failed to read file", err)
 
-	lis, err := net.Listen("tcp", "0")
+	lis, err := net.Listen("tcp", ":0")
 	pkg.FailOnError("Failed to listen", err)
 
 	server, err := pkg.ApiCall(api)
@@ -62,7 +62,7 @@ func main() {
 		Contents:  bytes,
 	}
 	results, err := server.Client.SendGraph(server.Ctx, &graph)
-	pkg.FailOnError("Server error", err)
+	pkg.FailOnError("API Server error", err)
 	if results != nil {
 		fmt.Println("Received results:")
 		for id, v := range results.Graph {

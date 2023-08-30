@@ -20,7 +20,7 @@ import (
 const HEALTH_CHECK_DEFAULT = 5000
 
 func main() {
-	port, master, queue, healthCheck, err := ReadEnvVars()
+	nodePort, apiPort, master, queue, healthCheck, err := ReadEnvVars()
 	pkg.FailOnError("Failed to read environment variables", err)
 
 	// Connect to RabbitMQ
@@ -75,11 +75,11 @@ func main() {
 	// Running gRPC server for internal network communication in a goroutine
 	go func() {
 		// Creating gRPC server
-		lis, err := net.Listen("tcp", fmt.Sprintf("%d", port))
-		pkg.FailOnError("Failed to listen", err)
+		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", nodePort))
+		pkg.FailOnError("Failed to listen for node server", err)
 		server := grpc.NewServer()
 		proto.RegisterNodeServer(server, &pkg.NodeServerImpl{Node: &n})
-		log.Printf("Starting %s node at %s\n", pkg.RoleToString(n.Role), lis.Addr().String())
+		log.Printf("Starting %s node at %v\n", pkg.RoleToString(n.Role), lis.Addr())
 		err = server.Serve(lis)
 		pkg.FailOnError("Failed to serve", err)
 	}()
@@ -91,11 +91,11 @@ func main() {
 	}()
 	if n.Role == pkg.Master {
 		// Running gRPC server for client communication in a goroutine
-		lis, err := net.Listen("tcp", "0")
-		pkg.FailOnError("Failed to listen", err)
+		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", apiPort))
+		pkg.FailOnError("Failed to listen for API server", err)
 		s := grpc.NewServer()
 		proto.RegisterApiServer(s, &pkg.ApiServerImpl{Node: &n})
-		log.Printf("Starting api server at %s\n", lis.Addr().String())
+		log.Printf("Starting API server at %v\n", lis.Addr())
 		err = s.Serve(lis)
 		pkg.FailOnError("Failed to serve", err)
 	}
@@ -116,7 +116,7 @@ func main() {
 // - queue: RabbitMQ connection string
 // - healthCheck: how often a worker node contact the master node for health check
 // - err: if anything goes wrong
-func ReadEnvVars() (port int, master string, queue string, healthCheckMilli int, err error) {
+func ReadEnvVars() (nodePort, apiPort int, master string, queue string, healthCheckMilli int, err error) {
 	master = os.Getenv("MASTER")
 	if master == "" {
 		err = errors.New("MASTER not set")
@@ -127,12 +127,25 @@ func ReadEnvVars() (port int, master string, queue string, healthCheckMilli int,
 		err = errors.New("QUEUE not set")
 		return
 	}
-	portString := os.Getenv("PORT")
-	if portString == "" {
-		portString = "0"
+	nodePortStr := os.Getenv("NODE_PORT")
+	if nodePortStr == "" {
+		err = errors.New("NODE_PORT not set")
+		return
 	}
-	port, err = strconv.Atoi(portString)
+	nodePort, err = strconv.Atoi(nodePortStr)
 	if err != nil {
+		err = fmt.Errorf("Could not convert NODE_PORT to a number: %v", err)
+		return
+	}
+	// FIXME: raise error only if it's master
+	apiPortStr := os.Getenv("API_PORT")
+	if nodePortStr == "" {
+		err = errors.New("API_PORT not set")
+		return
+	}
+	apiPort, err = strconv.Atoi(apiPortStr)
+	if err != nil {
+		err = fmt.Errorf("Could not convert API_PORT to a number: %v", err)
 		return
 	}
 	healthCheckMilliString := os.Getenv("HEALTH_CHECK")
