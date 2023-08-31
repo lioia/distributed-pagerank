@@ -3,28 +3,31 @@ services:
     build: .
     depends_on:
       rabbitmq:
-        condition: service_healthy
+        condition: service_healthy # wait for RabbitMQ to completely start
     environment:
       - "MASTER=${MASTER}"
       - "NODE_PORT=${NODE_PORT}"
       - "API_PORT=${API_PORT}"
-      - "QUEUE=amqp://${RABBIT_USER:-guest}:${RABBIT_PASSWORD:-guest}@${RABBIT_HOST:-rabbitmq}:5672/"
+      - "RABBIT_HOST=${RABBIT_HOST:-rabbitmq}"
+      - "RABBIT_USER=${RABBIT_USER:-guest}"
+      - "RABBIT_PASSWORD=${RABBIT_PASSWORD:-guest}"
     ports:
       - "1234:${NODE_PORT}"
       - "5678:${API_PORT}"
   worker:
     build: .
     deploy:
-      replicas: 4
+      replicas: 1
     depends_on:
       - master
       - rabbitmq
     environment:
       - "MASTER=${MASTER}"
-      - "QUEUE=amqp://${RABBIT_USER:-guest}:${RABBIT_PASSWORD:-guest}@${RABBIT_HOST:-rabbitmq}:5672/"
+      - "NODE_PORT=${NODE_PORT}"
+      - "RABBIT_HOST=${RABBIT_HOST:-rabbitmq}"
+      - "RABBIT_USER=${RABBIT_USER:-guest}"
+      - "RABBIT_PASSWORD=${RABBIT_PASSWORD:-guest}"
       - "HEALTH_CHECK=${HEALTH_CHECK}"
-      - "NODE_PORT=0" # automatic port assignment
-      - "API_PORT=0"
   rabbitmq:
     image: rabbitmq:management-alpine
     ports:

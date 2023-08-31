@@ -52,11 +52,10 @@ func RoleToString(role Role) string {
 	return "Undefined"
 }
 
-func (n *Node) Update() error {
+func (n *Node) Update() {
 	if n.Role == Worker {
-		return n.workerUpdate()
+		n.workerUpdate()
 	} else if n.Role == Master {
-		return n.masterUpdate()
+		n.masterUpdate()
 	}
-	return nil
 }

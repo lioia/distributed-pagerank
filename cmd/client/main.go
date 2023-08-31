@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -61,16 +60,9 @@ func main() {
 		Threshold: threshold,
 		Contents:  bytes,
 	}
-	results, err := server.Client.SendGraph(server.Ctx, &graph)
+	_, err = server.Client.SendGraph(server.Ctx, &graph)
 	pkg.FailOnError("API Server error", err)
-	if results != nil {
-		fmt.Println("Received results:")
-		for id, v := range results.Graph {
-			fmt.Printf("%d -> %f\n", id, v.Rank)
-		}
-		os.Exit(0)
-	}
-
+	log.Println("Waiting for results...")
 	// Starting gRPC server to receive results
 	s := grpc.NewServer()
 	proto.RegisterApiServer(s, &pkg.ApiServerImpl{})

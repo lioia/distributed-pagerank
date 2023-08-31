@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/lioia/distributed-pagerank/proto"
-	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -66,46 +66,6 @@ func FailOnError(msg string, err error) {
 	}
 }
 
-func DeclareQueue(name string, ch *amqp.Channel) (amqp.Queue, error) {
-	return ch.QueueDeclare(
-		name,  // name
-		false, // durable
-		false, // delete when unused
-		false, // exclusive
-		false, // no-wait
-		nil,   // arguments
-	)
-}
-
-func FailOnNack(d amqp.Delivery, err error) {
-	fmt.Printf("Could not marshal result: %v", err)
-	// Message will be re-added to the queue
-	if err = d.Nack(false, true); err != nil {
-		log.Fatalf("Could not NACK to message queue: %v", err)
-	}
-}
-
-func EmptyQueue(ch *amqp.Channel, name string) {
-	msgs, err := ch.Consume(
-		name,  // queue
-		"",    // consumer
-		false, // auto-ack
-		false, // exclusive
-		false, // no-local
-		false, // no-wait
-		nil,   // args
-	)
-	FailOnError("Could not register a consumer", err)
-
-	for msg := range msgs {
-		// Acknowledge the message to remove it from the queue
-		err := msg.Ack(false)
-		if err != nil {
-			log.Printf("Failed to acknowledge message: %v", err)
-		}
-	}
-}
-
 func ReadFromStdin(question string) (string, error) {
 	fmt.Print(question)
 	reader := bufio.NewReader(os.Stdin)
@@ -118,4 +78,40 @@ func ReadFromStdinAndFail(question string) string {
 		FailOnError("Coult not read from stdin", err)
 	}
 	return strings.TrimRight(value, "\n")
+}
+
+func ReadStringEnvVar(name string) (string, error) {
+	value := os.Getenv(name)
+	if value == "" {
+		return "", fmt.Errorf("%s not set", name)
+	}
+	return value, nil
+}
+
+func ReadIntEnvVar(name string) (int, error) {
+	valueStr, err := ReadStringEnvVar(name)
+	if err != nil {
+		return 0, err
+	}
+	value, err := strconv.Atoi(valueStr)
+	if err != nil {
+		return 0, fmt.Errorf("Could not convert %s to a number: %v", name, err)
+	}
+	return value, nil
+}
+
+func ReadStringEnvVarOr(name string, or string) string {
+	value, err := ReadStringEnvVar(name)
+	if err != nil {
+		value = or
+	}
+	return value
+}
+
+func ReadIntEnvVarOr(name string, or int) int {
+	value, err := ReadIntEnvVar(name)
+	if err != nil {
+		value = or
+	}
+	return value
 }

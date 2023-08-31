@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"context"
+	"log"
 	"math"
 	"sync"
 	"time"
@@ -12,40 +13,44 @@ import (
 	protobuf "google.golang.org/protobuf/proto"
 )
 
-func (n *Node) masterUpdate() error {
-	var err error
-loop:
+func (n *Node) masterUpdate() {
+	status := make(chan bool)
+	go masterReadQueue(n, status)
 	for {
 		switch n.State.Phase {
 		case int32(Map):
-			if n.State.Jobs == int32(n.Queue.Work.Messages) {
-				if err = masterReadQueue(n); err != nil {
-					break loop
-				}
-				n.masterSendUpdateToWorkers()
+			numberOfMessages := GetNumberOfQueueMessages(n.Queue.Result.Name)
+			if n.State.Jobs == int32(numberOfMessages) {
+				status <- true
+				<-status
 				n.State.Phase = int32(Collect)
+				go n.masterSendUpdateToWorkers()
+				log.Println("Completed Map phase")
 				break
 			}
 		case int32(Collect):
-			if err = masterCollect(n); err != nil {
-				break loop
-			}
+			err := masterCollect(n)
+			FailOnError("Could not execute Collect phase", err)
+			log.Println("Completed Collect phase")
+			log.Printf("Switch to Reduce phase (%d jobs)\n", n.State.Jobs)
 		case int32(Reduce):
-			if n.State.Jobs == int32(n.Queue.Work.Messages) {
-				if err = masterReadQueue(n); err != nil {
-					break loop
-				}
-				n.masterSendUpdateToWorkers()
+			numberOfMessages := GetNumberOfQueueMessages(n.Queue.Result.Name)
+			if n.State.Jobs == int32(numberOfMessages) {
+				status <- true
+				<-status
 				n.State.Phase = int32(Convergence)
+				go n.masterSendUpdateToWorkers()
+				log.Println("Completed Reduce phase")
 				break
 			}
 		case int32(Convergence):
-			if err = masterConvergence(n); err != nil {
-				break loop
-			}
+			err := masterConvergence(n)
+			FailOnError("Could not execute Convergence phase", err)
+			log.Println("Completed Convergence phase")
 		}
+		// Update every 500ms
+		time.Sleep(500 * time.Millisecond)
 	}
-	return err
 }
 
 func masterCollect(n *Node) error {
@@ -58,23 +63,29 @@ func masterCollect(n *Node) error {
 		return nil
 	}
 	// Divide Graph in SubGraphs
-	numberOfJobs := len(n.State.Data) / len(n.State.Others)
+	numberOfJobs := len(n.State.Others)
+	if numberOfJobs >= len(n.State.Graph.Graph) {
+		numberOfJobs = len(n.State.Graph.Graph) - 1
+	}
 	subGraphs := make([]*proto.Graph, numberOfJobs)
-	index := 0
+	i := 0
 	for id, node := range n.State.Graph.Graph {
-		subGraphs[index/numberOfJobs].Graph[id] = node
-		index += 1
+		if subGraphs[i] == nil {
+			subGraphs[i] = &proto.Graph{Graph: make(map[int32]*proto.GraphNode)}
+		}
+		subGraphs[i].Graph[id] = node
+		i = (i + 1) % numberOfJobs
 	}
 	// Send subgraph to work queue
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	for _, subGraph := range subGraphs {
-		reduce := proto.Reduce{}
+		reduce := proto.Reduce{Sums: make(map[int32]float64)}
 		for id, v := range subGraph.Graph {
 			reduce.Nodes = append(reduce.Nodes, v)
 			reduce.Sums[id] = n.State.Data[id]
 		}
-		job := proto.Job{Type: 1, ReduceData: &reduce}
+		job := proto.Job{Type: 1, ReduceData: &reduce, MapData: subGraph.Graph}
 		data, err := protobuf.Marshal(&job)
 		if err != nil {
 			EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
@@ -97,7 +108,6 @@ func masterCollect(n *Node) error {
 	}
 	// Switch to Reduce phase
 	n.State.Jobs = int32(numberOfJobs)
-	n.State.Data = make(map[int32]float64)
 	n.State.Phase = int32(Reduce)
 	return nil
 }
@@ -115,7 +125,9 @@ func masterConvergence(n *Node) error {
 		// Start new computation with updated pagerank values
 		return n.WriteGraphToQueue()
 	} else {
+		log.Println("Convergence check success; sending results to client")
 		// Send results to client
+		// TODO: Crashes because the container cannot contact the host
 		client, err := ApiCall(n.State.Client)
 		if err != nil {
 			return err
@@ -126,7 +138,7 @@ func masterConvergence(n *Node) error {
 		}
 		// Node Reset
 		n.State = &proto.State{Phase: int32(Wait)}
-		n.masterSendUpdateToWorkers()
+		go n.masterSendUpdateToWorkers()
 	}
 
 	return nil
@@ -137,18 +149,24 @@ func (n *Node) WriteGraphToQueue() error {
 		return nil
 	}
 	// Divide Graph in SubGraphs
-	numberOfSubGraphs := len(n.State.Graph.Graph) / len(n.State.Others)
+	numberOfSubGraphs := len(n.State.Others)
+	if numberOfSubGraphs >= len(n.State.Graph.Graph) {
+		numberOfSubGraphs = len(n.State.Graph.Graph) - 1
+	}
 	subGraphs := make([]*proto.Graph, numberOfSubGraphs)
-	index := 0
+	i := 0
 	for id, node := range n.State.Graph.Graph {
-		subGraphs[index/numberOfSubGraphs].Graph[id] = node
-		index += 1
+		if subGraphs[i] == nil {
+			subGraphs[i] = &proto.Graph{Graph: make(map[int32]*proto.GraphNode)}
+		}
+		subGraphs[i].Graph[id] = node
+		i = (i + 1) % numberOfSubGraphs
 	}
 	// Send subgraph to work queue
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	for _, subGraph := range subGraphs {
-		job := proto.Job{Type: 0, MapData: subGraph.Graph}
+		job := proto.Job{Type: 0, MapData: subGraph.Graph, ReduceData: &proto.Reduce{}}
 		data, err := protobuf.Marshal(&job)
 		if err != nil {
 			EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
@@ -172,6 +190,7 @@ func (n *Node) WriteGraphToQueue() error {
 	// Switch to Map phase
 	n.State.Phase = int32(Map)
 	n.State.Jobs = int32(numberOfSubGraphs)
+	log.Printf("Switch to Map phase (%d jobs)\n", n.State.Jobs)
 	return nil
 }
 
@@ -213,7 +232,8 @@ func (n *Node) masterSendUpdateToWorkers() {
 	n.State.Others = newWorkers
 }
 
-func masterReadQueue(n *Node) error {
+func masterReadQueue(n *Node, status chan bool) {
+	log.Println("Master registered consumer")
 	// Register consumer
 	msgs, err := n.Queue.Channel.Consume(
 		n.Queue.Result.Name, // queue
@@ -225,26 +245,32 @@ func masterReadQueue(n *Node) error {
 		nil,                 // args
 	)
 	FailOnError("Could not register a consumer", err)
+	for {
+		// Wait for status update
+		<-status
+		n.State.Data = make(map[int32]float64)
 
-	for msg := range msgs {
-		var result proto.MapIntDouble
-		err := protobuf.Unmarshal(msg.Body, &result)
-		// FIXME: better error handling
-		if err != nil {
-			FailOnNack(msg, err)
-			continue
-		}
-		for id, v := range result.Map {
-			n.State.Data[id] += v
-		}
+		for i := 0; i < int(n.State.Jobs); i++ {
+			msg := <-msgs
+			var result proto.MapIntDouble
+			err := protobuf.Unmarshal(msg.Body, &result)
+			// FIXME: better error handling
+			if err != nil {
+				FailOnNack(msg, err)
+				continue
+			}
+			for id, v := range result.Map {
+				n.State.Data[id] += v
+			}
 
-		// Ack
-		// FIXME: better error handling
-		if err := msg.Ack(false); err != nil {
-			FailOnNack(msg, err)
-			continue
+			// Ack
+			// FIXME: better error handling
+			if err := msg.Ack(false); err != nil {
+				FailOnNack(msg, err)
+				continue
+			}
 		}
+		// Correctly read every message
+		status <- true
 	}
-
-	return nil
 }

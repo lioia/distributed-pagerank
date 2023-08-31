@@ -15,19 +15,29 @@ type ApiServerImpl struct {
 }
 
 // From client to master
-func (s *ApiServerImpl) SendGraph(_ context.Context, in *proto.GraphUpload) (*proto.Graph, error) {
+func (s *ApiServerImpl) SendGraph(_ context.Context, in *proto.GraphUpload) (*emptypb.Empty, error) {
+	empty := &emptypb.Empty{}
 	log.Printf("Received from: %s\n", in.From)
 	if s.Node.Role != Master {
-		return nil, fmt.Errorf("This node cannot fulfill this request. Contact master node at: %s", s.Node.Master)
+		return empty, fmt.Errorf("This node cannot fulfill this request. Contact master node at: %s", s.Node.Master)
 	}
 	graph, err := LoadGraphFromBytes(in.Contents)
 	if err != nil {
-		return nil, fmt.Errorf("Could not load graph: %v", err)
+		return empty, fmt.Errorf("Could not load graph: %v", err)
 	}
 	// No other node in the network -> calculating PageRank on this node
 	if len(s.Node.State.Others) == 0 {
 		SingleNodePageRank(graph, in.C, in.Threshold)
-		return graph, nil
+		// Send results to client
+		client, err := ApiCall(in.From)
+		if err != nil {
+			return empty, err
+		}
+		_, err = client.Client.ReceiveResults(client.Ctx, graph)
+		if err != nil {
+			return empty, err
+		}
+		return empty, nil
 	}
 	// Saving computation information
 	s.Node.State.Client = in.From
@@ -39,7 +49,7 @@ func (s *ApiServerImpl) SendGraph(_ context.Context, in *proto.GraphUpload) (*pr
 	// Send state update to worker nodes
 	s.Node.masterSendUpdateToWorkers()
 	// Graph was successfully uploaded and computation has started
-	return nil, err
+	return empty, err
 }
 
 // From master to client

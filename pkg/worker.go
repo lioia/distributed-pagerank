@@ -10,7 +10,15 @@ import (
 	protobuf "google.golang.org/protobuf/proto"
 )
 
-func (n *Node) workerUpdate() error {
+func (n *Node) workerUpdate() {
+	healthCheck := ReadIntEnvVarOr("HEALTH_CHECK", 5000)
+	// Worker Health Check
+	go func() {
+		for {
+			n.WorkerHealthCheck()
+			time.Sleep(time.Duration(healthCheck) * time.Millisecond)
+		}
+	}()
 	// Register consumer
 	msgs, err := n.Queue.Channel.Consume(
 		n.Queue.Work.Name, // queue
@@ -40,9 +48,13 @@ func (n *Node) workerUpdate() error {
 			// Create result value
 			// Handle job based on type
 			if job.Type == 0 {
+				log.Println("Computing Map Job")
 				result.Map = n.workerMap(job.MapData)
+				log.Println("Completed Map Job")
 			} else if job.Type == 1 {
+				log.Println("Computing Reduce Job")
 				result.Map = n.workerReduce(job.ReduceData)
+				log.Println("Completed Reduce Job")
 			}
 			// Publish result to Result queue
 			data, err := protobuf.Marshal(&result)
@@ -75,8 +87,6 @@ func (n *Node) workerUpdate() error {
 
 	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
 	<-forever
-
-	return nil
 }
 
 func (n *Node) workerMap(subGraph map[int32]*proto.GraphNode) map[int32]float64 {
@@ -103,16 +113,17 @@ func (n *Node) WorkerHealthCheck() {
 	if err != nil {
 		// Master didn't respond -> assuming crash
 		n.workerCandidacy()
+		return
 	}
 	defer master.Conn.Close()
 	defer master.CancelFunc()
 	_, err = master.Client.HealthCheck(master.Ctx, nil)
-	// No error detected -> master is still valid
-	if err == nil {
+	if err != nil {
+		// Master didn't respond -> assuming crash
+		n.workerCandidacy()
 		return
 	}
-	// Master didn't respond -> assuming crash
-	n.workerCandidacy()
+	// No error detected -> master is still valid
 }
 
 func (n *Node) workerCandidacy() {
@@ -151,6 +162,7 @@ func (n *Node) workerCandidacy() {
 		}
 	}
 	n.State.Others = newWorkers
+	// TODO: start API server
 	if elected {
 		n.Role = Master
 	}

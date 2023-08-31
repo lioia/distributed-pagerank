@@ -1,29 +1,33 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net"
-	"os"
-	"strconv"
-	"time"
 
 	"github.com/lioia/distributed-pagerank/pkg"
 	"github.com/lioia/distributed-pagerank/proto"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-// Default value
-const HEALTH_CHECK_DEFAULT = 5000
-
 func main() {
-	nodePort, apiPort, master, queue, healthCheck, err := ReadEnvVars()
+	master, err := pkg.ReadStringEnvVar("MASTER")
+	pkg.FailOnError("Failed to read environment variables", err)
+	rabbitHost, err := pkg.ReadStringEnvVar("RABBIT_HOST")
+	pkg.FailOnError("Failed to read environment variables", err)
+	rabbitUser := pkg.ReadStringEnvVarOr("RABBIT_USER", "guest")
+	rabbitPass := pkg.ReadStringEnvVarOr("RABBIT_PASSWORD", "guest")
+	nodePort, err := pkg.ReadIntEnvVar("NODE_PORT")
 	pkg.FailOnError("Failed to read environment variables", err)
 
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", nodePort))
+	pkg.FailOnError("Failed to listen for node server", err)
+
 	// Connect to RabbitMQ
+	queue := fmt.Sprintf("amqp://%s:%s@%s:5672/", rabbitUser, rabbitPass, rabbitHost)
 	queueConn, err := amqp.Dial(queue)
 	pkg.FailOnError("Could not connect to RabbitMQ", err)
 	defer queueConn.Close()
@@ -50,7 +54,10 @@ func main() {
 	defer masterClient.CancelFunc()
 	defer masterClient.Conn.Close()
 	pkg.FailOnError("Could not create connection to the masterClient node", err)
-	join, err := masterClient.Client.NodeJoin(masterClient.Ctx, nil)
+	join, err := masterClient.Client.NodeJoin(
+		masterClient.Ctx,
+		&wrapperspb.StringValue{Value: lis.Addr().String()},
+	)
 	if err != nil {
 		// There is no node at the address -> creating a new network
 		// This node will be the master
@@ -75,88 +82,26 @@ func main() {
 	// Running gRPC server for internal network communication in a goroutine
 	go func() {
 		// Creating gRPC server
-		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", nodePort))
-		pkg.FailOnError("Failed to listen for node server", err)
 		server := grpc.NewServer()
 		proto.RegisterNodeServer(server, &pkg.NodeServerImpl{Node: &n})
 		log.Printf("Starting %s node at %v\n", pkg.RoleToString(n.Role), lis.Addr())
 		err = server.Serve(lis)
 		pkg.FailOnError("Failed to serve", err)
 	}()
-	// Node update (computation phase)
-	go func() {
-		if err = n.Update(); err != nil {
-			log.Fatalf("Node update error: %v", err)
-		}
-	}()
+	// Running gRPC server for client communication in a goroutine
 	if n.Role == pkg.Master {
-		// Running gRPC server for client communication in a goroutine
-		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", apiPort))
-		pkg.FailOnError("Failed to listen for API server", err)
-		s := grpc.NewServer()
-		proto.RegisterApiServer(s, &pkg.ApiServerImpl{Node: &n})
-		log.Printf("Starting API server at %v\n", lis.Addr())
-		err = s.Serve(lis)
-		pkg.FailOnError("Failed to serve", err)
-	}
-	if n.Role == pkg.Worker {
-		// Worker Health Check
+		apiPort, err := pkg.ReadIntEnvVar("API_PORT")
+		pkg.FailOnError("Failed to read environment variables", err)
 		go func() {
-			for {
-				n.WorkerHealthCheck()
-				time.Sleep(time.Duration(healthCheck) * time.Millisecond)
-			}
+			lis, err := net.Listen("tcp", fmt.Sprintf(":%d", apiPort))
+			pkg.FailOnError("Failed to listen for API server", err)
+			s := grpc.NewServer()
+			proto.RegisterApiServer(s, &pkg.ApiServerImpl{Node: &n})
+			log.Printf("Starting API server at %v\n", lis.Addr())
+			err = s.Serve(lis)
+			pkg.FailOnError("Failed to serve", err)
 		}()
 	}
-}
-
-// Returns, in order:
-// - port: where the node will start - 0 for automatic port assignment
-// - master: expected address of the master node
-// - queue: RabbitMQ connection string
-// - healthCheck: how often a worker node contact the master node for health check
-// - err: if anything goes wrong
-func ReadEnvVars() (nodePort, apiPort int, master string, queue string, healthCheckMilli int, err error) {
-	master = os.Getenv("MASTER")
-	if master == "" {
-		err = errors.New("MASTER not set")
-		return
-	}
-	queue = os.Getenv("QUEUE")
-	if queue == "" {
-		err = errors.New("QUEUE not set")
-		return
-	}
-	nodePortStr := os.Getenv("NODE_PORT")
-	if nodePortStr == "" {
-		err = errors.New("NODE_PORT not set")
-		return
-	}
-	nodePort, err = strconv.Atoi(nodePortStr)
-	if err != nil {
-		err = fmt.Errorf("Could not convert NODE_PORT to a number: %v", err)
-		return
-	}
-	// FIXME: raise error only if it's master
-	apiPortStr := os.Getenv("API_PORT")
-	if nodePortStr == "" {
-		err = errors.New("API_PORT not set")
-		return
-	}
-	apiPort, err = strconv.Atoi(apiPortStr)
-	if err != nil {
-		err = fmt.Errorf("Could not convert API_PORT to a number: %v", err)
-		return
-	}
-	healthCheckMilliString := os.Getenv("HEALTH_CHECK")
-	if healthCheckMilliString == "" {
-		healthCheckMilli = HEALTH_CHECK_DEFAULT
-		return
-	}
-	healthCheckMilli, err = strconv.Atoi(healthCheckMilliString)
-	if err != nil {
-		healthCheckMilli = HEALTH_CHECK_DEFAULT
-		log.Printf("Could not convert %s in an integer. Using default value of %d\n", healthCheckMilliString, HEALTH_CHECK_DEFAULT)
-	}
-	return
+	// Node Update
+	n.Update()
 }

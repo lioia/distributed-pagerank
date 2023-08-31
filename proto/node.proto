@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
 
 option go_package = "github.com/lioia/distributed-pagerank/proto";
 
@@ -10,13 +11,13 @@ package proto;
 service Node {
   rpc HealthCheck(google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc StateUpdate(State) returns (google.protobuf.Empty) {}
-  rpc NodeJoin(google.protobuf.Empty) returns (Join) {}
+  rpc NodeJoin(google.protobuf.StringValue) returns (Join) {}
   rpc MasterCandidate(Candidacy) returns (Ack) {}
 }
 
 // Master-Client communication
 service Api {
-  rpc SendGraph(GraphUpload) returns (Graph) {}
+  rpc SendGraph(GraphUpload) returns (google.protobuf.Empty) {}
   rpc ReceiveResults(Graph) returns (google.protobuf.Empty) {}
 }
 
