@@ -135,33 +135,9 @@ func loadConfiguration() (c float64, threshold float64, g map[int32]*proto.Graph
 		log.Printf("Could not parse configuration file: %v", err)
 		return
 	}
-	// Check if it's a network resource or a local one
-	if strings.HasPrefix(config.Graph, "http") {
-		// Loading file from network
-		var resp *http.Response
-		resp, err = http.Get(config.Graph)
-		if err != nil {
-			log.Printf("Could not load network file at %s: %v", config.Graph, err)
-			return
-		}
-		defer resp.Body.Close()
-		// Read response body
-		bytes, err = io.ReadAll(resp.Body)
-		if err != nil {
-			log.Printf("Could not load body from request: %v", err)
-		}
-	} else {
-		// Loading file from local filesystem
-		bytes, err = os.ReadFile(config.Graph)
-		if err != nil {
-			log.Printf("Could not read graph at %s: %v", config.Graph, err)
-			return
-		}
-	}
 	// Parse graph file into graph representation
-	g, err = graph.LoadGraphFromBytes(bytes)
+	g, err = graph.LoadGraphResource(config.Graph)
 	if err != nil {
-		log.Printf("Could not load graph from %s: %v", config.Graph, err)
 		return
 	}
 	c = config.C

@@ -2,11 +2,13 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math"
 	"sync"
 	"time"
 
+	"github.com/lioia/distributed-pagerank/graph"
 	"github.com/lioia/distributed-pagerank/proto"
 	"github.com/lioia/distributed-pagerank/utils"
 
@@ -19,6 +21,10 @@ func (n *Node) masterUpdate() {
 	go masterReadQueue(n, status)
 	for {
 		switch n.State.Phase {
+		case int32(Wait):
+			err := masterWait(n)
+			utils.FailOnError("Could not execute Wait phase", err)
+			log.Println("Completed Wait phase")
 		case int32(Map):
 			numberOfMessages := utils.GetNumberOfQueueMessages(n.Queue.Result.Name)
 			if n.State.Jobs == int32(numberOfMessages) {
@@ -45,13 +51,62 @@ func (n *Node) masterUpdate() {
 				break
 			}
 		case int32(Convergence):
-			err := masterConvergence(n)
-			utils.FailOnError("Could not execute Convergence phase", err)
+			masterConvergence(n)
 			log.Println("Completed Convergence phase")
 		}
 		// Update every 500ms
 		time.Sleep(500 * time.Millisecond)
 	}
+}
+
+func masterWait(n *Node) error {
+	if n.State.Graph != nil {
+		// A graph was loaded (from configuration or previous iteration)
+
+		// No other node in the network -> calculating PageRank on this node
+		if len(n.State.Others) == 0 {
+			graph.SingleNodePageRank(n.State.Graph, n.State.C, n.State.Threshold)
+			log.Println("Computed Page Rank on single node")
+			for id, v := range n.State.Graph {
+				log.Printf("%d -> %f\n", id, v.Rank)
+			}
+			// Node Reset
+			n.State.Graph = nil
+			n.State.C = 0.0
+			n.State.Threshold = 0.0
+			return nil
+		}
+		// Divide the graph in message and publish to queue
+		err := n.WriteGraphToQueue()
+		if err != nil {
+			return err
+		}
+		n.State.Phase = int32(Map)
+		// Send state update to worker nodes
+		go n.masterSendUpdateToWorkers()
+	}
+	// Ask user configuration
+	fmt.Println("Start new computation:")
+	c := utils.ReadFloat64FromStdin("Enter c-value [in range (0.0..1.0)] ")
+	threshold := utils.ReadFloat64FromStdin("Enter threshold [in range (0.0..1.0)] ")
+	var g map[int32]*proto.GraphNode
+	var input string
+	for {
+		fmt.Printf("Enter graph file [local or network resource]: ")
+		fmt.Scanln(&input)
+		var err error
+		g, err = graph.LoadGraphResource(input)
+		if err != nil {
+			fmt.Println("Graph file could not be loaded correctly. Try again")
+			continue
+		}
+		break
+	}
+	n.State.Graph = g
+	n.State.C = c
+	n.State.Threshold = threshold
+	// On next Wait phase, it will send the subgraphs to the queue
+	return nil
 }
 
 func masterCollect(n *Node) error {
@@ -116,7 +171,7 @@ func masterCollect(n *Node) error {
 	return nil
 }
 
-func masterConvergence(n *Node) error {
+func masterConvergence(n *Node) {
 	convergence := 0.0
 	for id, newRank := range n.State.Data {
 		oldRank := n.State.Graph[id].Rank
@@ -127,16 +182,22 @@ func masterConvergence(n *Node) error {
 	// Does not converge -> iterate
 	if convergence > n.State.Threshold {
 		// Start new computation with updated pagerank values
-		return n.WriteGraphToQueue()
+		n.State.Phase = int32(Wait)
 	} else {
-		// TODO: print results
-		log.Println("Convergence check success; sending results to client")
+		log.Println("Convergence check success")
+		for id, v := range n.State.Graph {
+			log.Printf("%d -> %f\n", id, v.Rank)
+		}
 		// Node Reset
-		n.State = &proto.State{Phase: int32(Wait)}
+		n.State = &proto.State{
+			Graph:     nil,
+			C:         0.0,
+			Threshold: 0.0,
+			Jobs:      0,
+			Phase:     int32(Wait),
+		}
 		go n.masterSendUpdateToWorkers()
 	}
-
-	return nil
 }
 
 func (n *Node) WriteGraphToQueue() error {

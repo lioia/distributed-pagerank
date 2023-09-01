@@ -1,13 +1,11 @@
 package utils
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/lioia/distributed-pagerank/proto"
@@ -47,20 +45,6 @@ func FailOnError(msg string, err error) {
 	}
 }
 
-func ReadFromStdin(question string) (string, error) {
-	fmt.Print(question)
-	reader := bufio.NewReader(os.Stdin)
-	return reader.ReadString('\n')
-}
-
-func ReadFromStdinAndFail(question string) string {
-	value, err := ReadFromStdin(question)
-	if err != nil {
-		FailOnError("Coult not read from stdin", err)
-	}
-	return strings.TrimRight(value, "\n")
-}
-
 func ReadStringEnvVar(name string) (string, error) {
 	value := os.Getenv(name)
 	if value == "" {
@@ -95,4 +79,18 @@ func ReadIntEnvVarOr(name string, or int) int {
 		value = or
 	}
 	return value
+}
+
+func ReadFloat64FromStdin(question string) float64 {
+	var input string
+	for {
+		fmt.Print(question)
+		fmt.Scanln(&input)
+		value, err := strconv.ParseFloat(input, 64)
+		if err != nil {
+			fmt.Println("Input was not a number. Try again")
+			continue
+		}
+		return value
+	}
 }

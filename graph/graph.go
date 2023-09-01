@@ -2,12 +2,51 @@ package graph
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"math/rand"
+	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
 	"github.com/lioia/distributed-pagerank/proto"
 )
+
+func LoadGraphResource(resource string) (g map[int32]*proto.GraphNode, err error) {
+	var bytes []byte
+	// Check if it's a network resource or a local one
+	if strings.HasPrefix(resource, "http") {
+		// Loading file from network
+		var resp *http.Response
+		resp, err = http.Get(resource)
+		if err != nil {
+			log.Printf("Could not load network file at %s: %v", resource, err)
+			return nil, err
+		}
+		defer resp.Body.Close()
+		// Read response body
+		bytes, err = io.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("Could not load body from request: %v", err)
+			return nil, err
+		}
+	} else {
+		// Loading file from local filesystem
+		bytes, err = os.ReadFile(resource)
+		if err != nil {
+			log.Printf("Could not read graph at %s: %v", resource, err)
+			return nil, err
+		}
+	}
+	// Parse graph file into graph representation
+	g, err = LoadGraphFromBytes(bytes)
+	if err != nil {
+		log.Printf("Could not load graph from %s: %v", resource, err)
+		return nil, err
+	}
+	return g, nil
+}
 
 func LoadGraphFromBytes(contents []byte) (map[int32]*proto.GraphNode, error) {
 	g := make(map[int32]*proto.GraphNode)
