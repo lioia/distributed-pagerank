@@ -10,13 +10,21 @@ package proto;
 // Internal Node communication
 service Node {
   // Worker to Master: check whether the master node is still running
-  rpc HealthCheck(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc HealthCheck(google.protobuf.StringValue) returns (Health) {}
   // Master to Worker: send master state to workers (consistency)
   rpc StateUpdate(State) returns (google.protobuf.Empty) {}
   // Worker to Master: new node asks to join the network
   rpc NodeJoin(google.protobuf.StringValue) returns (Join) {}
   // Worker to Worker: announces its candidacy as new master (after its failure)
   rpc MasterCandidate(Candidacy) returns (Ack) {}
+}
+
+message Health {
+  oneof value {
+    State state = 1; // If the worker was not known to the master (missed last
+                     // state update)
+    google.protobuf.Empty empty = 2; // If the worker was known to the master
+  }
 }
 
 message State {

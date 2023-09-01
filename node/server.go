@@ -15,8 +15,29 @@ type NodeServerImpl struct {
 }
 
 // From worker to master node to check if the master node is still alive
-func (s *NodeServerImpl) HealthCheck(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
-	return &emptypb.Empty{}, nil
+func (s *NodeServerImpl) HealthCheck(_ context.Context, in *wrapperspb.StringValue) (*proto.Health, error) {
+	var health *proto.Health
+	// Check if the contacting node is known to the master
+	// A worker node could have been removed from the Others array
+	// if it didn't respond to a StateUpdate
+	found := false
+	for _, v := range s.Node.State.Others {
+		if v == in.Value {
+			found = true
+			break
+		}
+	}
+	if found {
+		// Node was found -> last state update went correctly
+		health.Value = &proto.Health_Empty{}
+	} else {
+		// Node was not found -> worker does not have last state update
+		s.Node.State.Others = append(s.Node.State.Others, in.Value)
+		health.Value = &proto.Health_State{
+			State: s.Node.State,
+		}
+	}
+	return health, nil
 }
 
 // From master to worker nodes to keep the master node shared on specific events
@@ -27,6 +48,7 @@ func (s *NodeServerImpl) StateUpdate(_ context.Context, in *proto.State) (*empty
 
 // From new node to master node
 func (s *NodeServerImpl) NodeJoin(_ context.Context, in *wrapperspb.StringValue) (*proto.Join, error) {
+	// Worker cannot do this operation
 	if s.Node.Role == Worker {
 		return &proto.Join{}, fmt.Errorf("This node cannot fulfill this request. Contact master node at: %s", s.Node.Master)
 	}

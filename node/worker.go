@@ -118,13 +118,17 @@ func (n *Node) WorkerHealthCheck() {
 	}
 	defer master.Conn.Close()
 	defer master.CancelFunc()
-	_, err = master.Client.HealthCheck(master.Ctx, nil)
+	health, err := master.Client.HealthCheck(master.Ctx, nil)
 	if err != nil {
 		// Master didn't respond -> assuming crash
 		n.workerCandidacy()
 		return
 	}
 	// No error detected -> master is still valid
+	if state := health.GetState(); state != nil {
+		// Last state update was missed -> loading now
+		n.State = state
+	}
 }
 
 func (n *Node) workerCandidacy() {
