@@ -8,7 +8,8 @@
 
 ## Getting Started
 
-Setup  `.env` following `.env.example`
+Setup `.env` following `.env.example`
+Setup `config.json` (not required)
 
 ## Building
 
@@ -27,14 +28,14 @@ Setup  `.env` following `.env.example`
   --go-grpc_opt=paths=source_relative \
   proto/jobs.proto
   ```
-- Server
-  ```bash
-  go build -o build/server cmd/server/main.go
-  ```
-- Client:
-  ```bash
-  go build -o build/client cmd/client/main.go
-  ```
+- Node: `go build`
+
+### Docker Compose
+
+Run
+```
+docker compose up --build
+```
 
 ## Notes 
 

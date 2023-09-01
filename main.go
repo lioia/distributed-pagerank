@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -69,6 +68,16 @@ func main() {
 		// There is no node at the address -> creating a new network
 		// This node will be the master
 		log.Printf("No master node found at %s\n", master)
+		c, threshold, graph, err := loadConfiguration()
+		if err != nil {
+			// Configuration could not be loaded
+			log.Println("Configuration will asked later")
+		} else {
+			// Configuration loaded correctly
+			n.State.C = c
+			n.State.Threshold = threshold
+			n.State.Graph = graph
+		}
 	} else {
 		// Ther is a master node -> this node will be a worker
 		n.Role = pkg.Worker
@@ -95,4 +104,60 @@ func main() {
 	}()
 	// Node Update
 	n.Update()
+}
+
+// Load config.json (C, Threshold and graph file)
+func loadConfiguration() (c float64, threshold float64, graph map[int32]*proto.GraphNode, err error) {
+	// Try to open the config.json file
+	_, err = os.Open("config.json")
+	if err != nil {
+		log.Printf("Configuration file does not exists: %v", err)
+		return
+	}
+	// File exists -> load configuration
+	bytes, err := os.ReadFile("config.json")
+	if err != nil {
+		log.Printf("Could not read configuration file: %v")
+		return
+	}
+	// Parse config.json into a Golang struct
+	var config pkg.Config
+	err = json.Unmarshal(bytes, &config)
+	if err != nil {
+		log.Printf("Could not parse configuration file: %v", err)
+		return
+	}
+	// Check if it's a network resource or a local one
+	if strings.HasPrefix(config.Graph, "http") {
+		// Loading file from network
+		var resp *http.Response
+		resp, err = http.Get(config.Graph)
+		if err != nil {
+			log.Printf("Could not load network file at %s: %v", config.Graph, err)
+			return
+		}
+		defer resp.Body.Close()
+		// Read response body
+		bytes, err = io.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("Could not load body from request: %v", err)
+		}
+	} else {
+		// Loading file from local filesystem
+		bytes, err = os.ReadFile(config.Graph)
+		if err != nil {
+			log.Printf("Could not read graph at %s: %v", config.Graph, err)
+			return
+		}
+	}
+	// Parse graph file into graph representation
+	graph, err = pkg.LoadGraphFromBytes(bytes)
+	if err != nil {
+		log.Println("Could not load graph from %s: %v", config.Graph, err)
+		return
+	}
+	c = config.C
+	threshold = config.Threshold
+
+	return
 }

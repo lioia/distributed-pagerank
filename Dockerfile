@@ -16,23 +16,30 @@ RUN apk update && \
 ENV PATH="$PATH:$(go env GOPATH)/bin"
 
 # Copy & install additional packages required
-COPY go.mod go.sum ./
+COPY go.mod go.sum config.json ./
 RUN go mod download
 
 # Copy Source Code
-COPY cmd/ cmd/ 
 COPY pkg/ pkg/ 
 COPY proto/ proto/ 
+COPY utils/ utils/
+COPY main.go .
 
 # Compile Protocol Buffers and server
-RUN protoc \
+RUN  protoc \
     --go_out=. \
     --go_opt=paths=source_relative \
     --go-grpc_out=. \
     --go-grpc_opt=paths=source_relative \
     proto/node.proto && \
-    CGO_ENABLED=0 GOOS=linux go build -o server cmd/server/main.go
+    protoc \
+    --go_out=. \
+    --go_opt=paths=source_relative \
+    --go-grpc_out=. \
+    --go-grpc_opt=paths=source_relative \
+    proto/jobs.proto && \
+    CGO_ENABLED=0 GOOS=linux go build
 
 EXPOSE $PORT
 
-CMD [ "/app/server" ]
+CMD [ "/app/distributed-pagerank" ]
