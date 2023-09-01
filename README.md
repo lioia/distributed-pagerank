@@ -39,7 +39,5 @@ docker compose up --build
 
 ## Notes 
 
-- When running on localhost, using Docker Compose, the client can connect to the 
-  API server directly by the port number: e.g. `:<port>`
 - When running on localhost, using Docker Compose, the MASTER env var, has to be
   set like this: `<master_service_name>:<master_port>`
