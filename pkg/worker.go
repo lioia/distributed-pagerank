@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/lioia/distributed-pagerank/proto"
+	"github.com/lioia/distributed-pagerank/utils"
 	amqp "github.com/rabbitmq/amqp091-go"
 	protobuf "google.golang.org/protobuf/proto"
 )
 
 func (n *Node) workerUpdate() {
-	healthCheck := ReadIntEnvVarOr("HEALTH_CHECK", 5000)
+	healthCheck := utils.ReadIntEnvVarOr("HEALTH_CHECK", 5000)
 	// Worker Health Check
 	go func() {
 		for {
@@ -29,7 +30,7 @@ func (n *Node) workerUpdate() {
 		false,             // no-wait
 		nil,               // args
 	)
-	FailOnError("Could not register a consumer", err)
+	utils.FailOnError("Could not register a consumer", err)
 	var forever chan struct{}
 
 	// Queue Message Handler
@@ -41,25 +42,25 @@ func (n *Node) workerUpdate() {
 			var job proto.Job
 			err := protobuf.Unmarshal(d.Body, &job)
 			if err != nil {
-				FailOnNack(d, err)
+				utils.FailOnNack(d, err)
 				continue
 			}
-			result := proto.MapIntDouble{}
+			result := proto.Result{}
 			// Create result value
 			// Handle job based on type
 			if job.Type == 0 {
 				log.Println("Computing Map Job")
-				result.Map = n.workerMap(job.MapData)
+				result.Values = n.workerMap(job.MapData)
 				log.Println("Completed Map Job")
 			} else if job.Type == 1 {
 				log.Println("Computing Reduce Job")
-				result.Map = n.workerReduce(job.ReduceData)
+				result.Values = n.workerReduce(job.ReduceData)
 				log.Println("Completed Reduce Job")
 			}
 			// Publish result to Result queue
 			data, err := protobuf.Marshal(&result)
 			if err != nil {
-				FailOnNack(d, err)
+				utils.FailOnNack(d, err)
 				continue
 			}
 			err = n.Queue.Channel.PublishWithContext(ctx,
@@ -73,13 +74,13 @@ func (n *Node) workerUpdate() {
 					Body:         data,
 				})
 			if err != nil {
-				FailOnNack(d, err)
+				utils.FailOnNack(d, err)
 				continue
 			}
 
 			// Ack
 			if err := d.Ack(false); err != nil {
-				FailOnNack(d, err)
+				utils.FailOnNack(d, err)
 				continue
 			}
 		}
@@ -89,27 +90,27 @@ func (n *Node) workerUpdate() {
 	<-forever
 }
 
-func (n *Node) workerMap(subGraph map[int32]*proto.GraphNode) map[int32]float64 {
+func (n *Node) workerMap(subGraph map[int32]*proto.Map) map[int32]float64 {
 	contributions := make(map[int32]float64)
 	for _, u := range subGraph {
-		data := ComputeMap(u)
-		for id, v := range data {
-			contributions[id] += v
+		nV := float64(len(u.OutLinks))
+		for _, v := range u.OutLinks {
+			contributions[v] = u.Rank / nV
 		}
 	}
 	return contributions
 }
 
-func (n *Node) workerReduce(data *proto.Reduce) map[int32]float64 {
+func (n *Node) workerReduce(reduce map[int32]*proto.Reduce) map[int32]float64 {
 	ranks := make(map[int32]float64)
-	for _, v := range data.Nodes {
-		ranks[v.Id] = ComputeReduce(v, data.Sums[v.Id], n.C)
+	for id, v := range reduce {
+		ranks[id] = n.State.C*v.Sum + (1-n.State.C)*v.EValue
 	}
 	return ranks
 }
 
 func (n *Node) WorkerHealthCheck() {
-	master, err := NodeCall(n.Master)
+	master, err := utils.NodeCall(n.Master)
 	if err != nil {
 		// Master didn't respond -> assuming crash
 		n.workerCandidacy()
@@ -135,7 +136,7 @@ func (n *Node) workerCandidacy() {
 	crashedWorkers := make(map[int]bool)
 	elected := true
 	for i, v := range n.State.Others {
-		worker, err := NodeCall(v)
+		worker, err := utils.NodeCall(v)
 		if err != nil {
 			crashedWorkers[i] = true
 			continue
@@ -162,7 +163,10 @@ func (n *Node) workerCandidacy() {
 		}
 	}
 	n.State.Others = newWorkers
-	// TODO: start API server
+	// NOTE: to reduce state updates, probably they can happen only on
+	// start, collect and convergence phases (empty queue)
+	// So the new master should empty the queue
+	// TODO: cancel reader and health check goroutines
 	if elected {
 		n.Role = Master
 	}

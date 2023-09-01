@@ -27,8 +27,6 @@ const (
 type Node struct {
 	State      *proto.State // Shared node state
 	Role       Role         // What this node has to do
-	C          float64      // C-value in PageRank algorithm
-	Threshold  float64      // Threshold value used in PageRank algorithm
 	Connection string       // This node connection information
 	Queue      Queue        // Queue information
 	Master     string       // Master node (set if this node is a worker)
@@ -40,6 +38,12 @@ type Queue struct {
 	Channel *amqp.Channel
 	Work    *amqp.Queue
 	Result  *amqp.Queue
+}
+
+type Config struct {
+	C         float64
+	Threshold float64
+	Graph     string
 }
 
 func RoleToString(role Role) string {

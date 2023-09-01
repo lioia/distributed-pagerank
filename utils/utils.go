@@ -1,4 +1,4 @@
-package pkg
+package utils
 
 import (
 	"bufio"
@@ -15,16 +15,16 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type Client[T interface{}] struct {
+type Client struct {
 	Conn       *grpc.ClientConn
-	Client     T
+	Client     proto.NodeClient
 	Ctx        context.Context
 	CancelFunc context.CancelFunc
 }
 
 // User has to `defer CancelFunc()` and `defer Conn.Close()`
-func NodeCall(url string) (Client[proto.NodeClient], error) {
-	var clientInfo Client[proto.NodeClient]
+func NodeCall(url string) (Client, error) {
+	var clientInfo Client
 	conn, err := grpc.Dial(
 		url,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -33,25 +33,6 @@ func NodeCall(url string) (Client[proto.NodeClient], error) {
 		return clientInfo, err
 	}
 	client := proto.NewNodeClient(conn)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	clientInfo.Conn = conn
-	clientInfo.Client = client
-	clientInfo.Ctx = ctx
-	clientInfo.CancelFunc = cancel
-	return clientInfo, nil
-}
-
-// User has to `defer CancelFunc()` and `defer Conn.Close()`
-func ApiCall(url string) (Client[proto.ApiClient], error) {
-	var clientInfo Client[proto.ApiClient]
-	conn, err := grpc.Dial(
-		url,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		return clientInfo, err
-	}
-	client := proto.NewApiClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	clientInfo.Conn = conn
 	clientInfo.Client = client

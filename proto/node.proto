@@ -7,47 +7,27 @@ option go_package = "github.com/lioia/distributed-pagerank/proto";
 
 package proto;
 
-// Internal network node communication
+// Internal Node communication
 service Node {
+  // Worker to Master: check whether the master node is still running
   rpc HealthCheck(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  // Master to Worker: send master state to workers (consistency)
   rpc StateUpdate(State) returns (google.protobuf.Empty) {}
+  // Worker to Master: new node asks to join the network
   rpc NodeJoin(google.protobuf.StringValue) returns (Join) {}
+  // Worker to Worker: announces its candidacy as new master (after its failure)
   rpc MasterCandidate(Candidacy) returns (Ack) {}
 }
 
-// Master-Client communication
-service Api {
-  rpc SendGraph(GraphUpload) returns (google.protobuf.Empty) {}
-  rpc ReceiveResults(Graph) returns (google.protobuf.Empty) {}
-}
-
 message State {
-  int32 phase = 1;             // Current Node Phase
-  Graph graph = 2;             // Graph to be computed
-  string client = 3;           // Client that requested the computation
-  int32 jobs = 4;              // Number of jobs added to the queue
-  map<int32, double> data = 5; // Collected data from map or reduce phase
-  repeated string others = 6;  // Other nodes in the network
+  int32 phase = 1;                 // Current Node Phase
+  map<int32, GraphNode> graph = 2; // Graph to be computed
+  int32 jobs = 4;                  // Number of jobs added to the queue
+  map<int32, double> data = 5;     // Collected data from map or reduce phase
+  double c = 6;                    // PageRank Parameter
+  double threshold = 7;            // PageRank Parameter
+  repeated string others = 8;      // Other nodes in the network
 }
-
-message Join {
-  string workQueue = 1;
-  string resultQueue = 2;
-  double c = 3;
-  double threshold = 4;
-  State state = 5;
-}
-
-message GraphUpload {
-  string from = 1;
-  double c = 2;
-  double threshold = 3;
-  bytes contents = 4;
-}
-
-message MapIntDouble { map<int32, double> map = 1; }
-
-message Graph { map<int32, GraphNode> graph = 1; }
 
 message GraphNode {
   int32 id = 1;                // Node ID
@@ -56,20 +36,17 @@ message GraphNode {
   repeated int32 outLinks = 2; // Node IDs this node points to
 }
 
-message Job {
-  int32 type = 1; // 0: Map job; 1: Reduce job
-  map<int32, GraphNode> mapData = 2;
-  Reduce reduceData = 3;
-}
-
-message Reduce {
-  repeated GraphNode nodes = 1;
-  map<int32, double> sums = 2;
+message Join {
+  string workQueue = 1;   // Work queue name
+  string resultQueue = 2; // Result queue name
+  double c = 3;           // PageRank parameter
+  double threshold = 4;   // PageRank parameter
+  State state = 5;        // Master node state
 }
 
 message Candidacy {
-  string connection = 1;
-  int64 timestamp = 2;
+  string connection = 1; // Candidate connection information
+  int64 timestamp = 2;   // Used as an ID
 }
 
 message Ack {

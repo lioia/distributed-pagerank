@@ -9,7 +9,7 @@ import (
 	"github.com/lioia/distributed-pagerank/proto"
 )
 
-func LoadGraphFromBytes(contents []byte) (*proto.Graph, error) {
+func LoadGraphFromBytes(contents []byte) (map[int32]*proto.GraphNode, error) {
 	g := make(map[int32]*proto.GraphNode)
 	// Split file contents in lines (based on newline delimiter)
 	lines := strings.Split(strings.ReplaceAll(string(contents), "\r\n", "\n"), "\n")
@@ -48,8 +48,7 @@ func LoadGraphFromBytes(contents []byte) (*proto.Graph, error) {
 	for id := range g {
 		g[id].EValue /= total
 	}
-	return &proto.Graph{Graph: g}, nil
-
+	return g, nil
 }
 
 func convertLine(line string) (int32, int32, bool, error) {

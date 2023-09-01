@@ -1,4 +1,4 @@
-package pkg
+package utils
 
 import (
 	"fmt"
@@ -55,6 +55,10 @@ func EmptyQueue(ch *amqp.Channel, name string) {
 	}
 }
 
+// Contact RabbitMQ management API to query the number of messages
+// NOTE: this can be probably removed if the master reads the messages
+// but does not ack them until it received #jobs messages
+// This can be achieved by saving the DeliveryTag in an array
 func GetNumberOfQueueMessages(queueName string) int {
 	host, err := ReadStringEnvVar("RABBIT_HOST")
 	FailOnError("Failed to read environment variables", err)

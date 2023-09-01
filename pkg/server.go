@@ -34,8 +34,6 @@ func (s *NodeServerImpl) NodeJoin(_ context.Context, in *wrapperspb.StringValue)
 	constants := proto.Join{
 		WorkQueue:   s.Node.Queue.Work.Name,
 		ResultQueue: s.Node.Queue.Result.Name,
-		C:           s.Node.C,
-		Threshold:   s.Node.Threshold,
 		State:       s.Node.State,
 	}
 	return &constants, nil

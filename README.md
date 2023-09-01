@@ -19,7 +19,13 @@ Setup  `.env` following `.env.example`
   --go_opt=paths=source_relative \
   --go-grpc_out=. \
   --go-grpc_opt=paths=source_relative \
-  proto/node.proto
+  proto/node.proto && \
+  protoc \
+  --go_out=. \
+  --go_opt=paths=source_relative \
+  --go-grpc_out=. \
+  --go-grpc_opt=paths=source_relative \
+  proto/jobs.proto
   ```
 - Server
   ```bash
