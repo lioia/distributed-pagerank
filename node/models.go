@@ -1,4 +1,4 @@
-package pkg
+package node
 
 import (
 	"github.com/lioia/distributed-pagerank/proto"

@@ -10,7 +10,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/lioia/distributed-pagerank/pkg"
+	"github.com/lioia/distributed-pagerank/graph"
+	"github.com/lioia/distributed-pagerank/node"
 	"github.com/lioia/distributed-pagerank/proto"
 	"github.com/lioia/distributed-pagerank/utils"
 
@@ -41,13 +42,13 @@ func main() {
 	utils.FailOnError("Failed to open a channel to RabbitMQ", err)
 	defer ch.Close()
 
-	n := pkg.Node{
+	n := node.Node{
 		State: &proto.State{
-			Phase: int32(pkg.Wait),
+			Phase: int32(node.Wait),
 			Data:  make(map[int32]float64),
 		},
-		Role: pkg.Master,
-		Queue: pkg.Queue{
+		Role: node.Master,
+		Queue: node.Queue{
 			Conn:    queueConn,
 			Channel: ch,
 		},
@@ -80,7 +81,7 @@ func main() {
 		}
 	} else {
 		// Ther is a master node -> this node will be a worker
-		n.Role = pkg.Worker
+		n.Role = node.Worker
 		n.Master = master
 		n.State = join.State
 		workQueueName = join.WorkQueue
@@ -97,8 +98,8 @@ func main() {
 	go func() {
 		// Creating gRPC server
 		server := grpc.NewServer()
-		proto.RegisterNodeServer(server, &pkg.NodeServerImpl{Node: &n})
-		log.Printf("Starting %s node at %v\n", pkg.RoleToString(n.Role), lis.Addr())
+		proto.RegisterNodeServer(server, &node.NodeServerImpl{Node: &n})
+		log.Printf("Starting %s node at %v\n", node.RoleToString(n.Role), lis.Addr())
 		err = server.Serve(lis)
 		utils.FailOnError("Failed to serve", err)
 	}()
@@ -107,7 +108,7 @@ func main() {
 }
 
 // Load config.json (C, Threshold and graph file)
-func loadConfiguration() (c float64, threshold float64, graph map[int32]*proto.GraphNode, err error) {
+func loadConfiguration() (c float64, threshold float64, g map[int32]*proto.GraphNode, err error) {
 	// Try to open the config.json file
 	_, err = os.Open("config.json")
 	if err != nil {
@@ -117,11 +118,11 @@ func loadConfiguration() (c float64, threshold float64, graph map[int32]*proto.G
 	// File exists -> load configuration
 	bytes, err := os.ReadFile("config.json")
 	if err != nil {
-		log.Printf("Could not read configuration file: %v")
+		log.Printf("Could not read configuration file: %v", err)
 		return
 	}
 	// Parse config.json into a Golang struct
-	var config pkg.Config
+	var config node.Config
 	err = json.Unmarshal(bytes, &config)
 	if err != nil {
 		log.Printf("Could not parse configuration file: %v", err)
@@ -151,9 +152,9 @@ func loadConfiguration() (c float64, threshold float64, graph map[int32]*proto.G
 		}
 	}
 	// Parse graph file into graph representation
-	graph, err = pkg.LoadGraphFromBytes(bytes)
+	g, err = graph.LoadGraphFromBytes(bytes)
 	if err != nil {
-		log.Println("Could not load graph from %s: %v", config.Graph, err)
+		log.Printf("Could not load graph from %s: %v", config.Graph, err)
 		return
 	}
 	c = config.C
