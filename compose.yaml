@@ -6,14 +6,12 @@ services:
         condition: service_healthy # wait for RabbitMQ to completely start
     environment:
       - "MASTER=${MASTER}"
-      - "NODE_PORT=${NODE_PORT}"
-      - "API_PORT=${API_PORT}"
+      - "PORT=${PORT}"
       - "RABBIT_HOST=${RABBIT_HOST:-rabbitmq}"
       - "RABBIT_USER=${RABBIT_USER:-guest}"
       - "RABBIT_PASSWORD=${RABBIT_PASSWORD:-guest}"
     ports:
-      - "1234:${NODE_PORT}"
-      - "5678:${API_PORT}"
+      - "1234:${PORT}"
   worker:
     build: .
     deploy:
@@ -23,7 +21,7 @@ services:
       - rabbitmq
     environment:
       - "MASTER=${MASTER}"
-      - "NODE_PORT=${NODE_PORT}"
+      - "PORT=${PORT}"
       - "RABBIT_HOST=${RABBIT_HOST:-rabbitmq}"
       - "RABBIT_USER=${RABBIT_USER:-guest}"
       - "RABBIT_PASSWORD=${RABBIT_PASSWORD:-guest}"
