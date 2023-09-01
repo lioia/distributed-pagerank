@@ -37,7 +37,8 @@ Run
 docker compose up --build
 ```
 
-## Notes 
+## Notes - Docker Compose
 
-- When running on localhost, using Docker Compose, the MASTER env var, has to be
-  set like this: `<master_service_name>:<master_port>`
+- MASTER env var, has to be set like this: `<master_service_name>:<master_port>`
+- To enter input to the master node, attach to the Docker image:
+  `docker attach <master-service-name>`

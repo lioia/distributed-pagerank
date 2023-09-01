@@ -60,7 +60,7 @@ func (n *Node) masterUpdate() {
 }
 
 func masterWait(n *Node) error {
-	if n.State.Graph != nil {
+	if n.State.Graph != nil && len(n.State.Graph) > 0 {
 		// A graph was loaded (from configuration or previous iteration)
 
 		// No other node in the network -> calculating PageRank on this node
@@ -84,27 +84,28 @@ func masterWait(n *Node) error {
 		n.State.Phase = int32(Map)
 		// Send state update to worker nodes
 		go n.masterSendUpdateToWorkers()
-	}
-	// Ask user configuration
-	fmt.Println("Start new computation:")
-	c := utils.ReadFloat64FromStdin("Enter c-value [in range (0.0..1.0)] ")
-	threshold := utils.ReadFloat64FromStdin("Enter threshold [in range (0.0..1.0)] ")
-	var g map[int32]*proto.GraphNode
-	var input string
-	for {
-		fmt.Printf("Enter graph file [local or network resource]: ")
-		fmt.Scanln(&input)
-		var err error
-		g, err = graph.LoadGraphResource(input)
-		if err != nil {
-			fmt.Println("Graph file could not be loaded correctly. Try again")
-			continue
+	} else {
+		// Ask user configuration
+		fmt.Println("Start new computation:")
+		c := utils.ReadFloat64FromStdin("Enter c-value [in range (0.0..1.0)] ")
+		threshold := utils.ReadFloat64FromStdin("Enter threshold [in range (0.0..1.0)] ")
+		var g map[int32]*proto.GraphNode
+		var input string
+		for {
+			fmt.Printf("Enter graph file [local or network resource]: ")
+			fmt.Scanln(&input)
+			var err error
+			g, err = graph.LoadGraphResource(input)
+			if err != nil {
+				fmt.Println("Graph file could not be loaded correctly. Try again")
+				continue
+			}
+			break
 		}
-		break
+		n.State.Graph = g
+		n.State.C = c
+		n.State.Threshold = threshold
 	}
-	n.State.Graph = g
-	n.State.C = c
-	n.State.Threshold = threshold
 	// On next Wait phase, it will send the subgraphs to the queue
 	return nil
 }
@@ -259,13 +260,15 @@ func (n *Node) WriteGraphToQueue() error {
 }
 
 // Master send state to all workers
-// TODO: maybe goroutine is not necessary (since we're already in one)
+// TODO: goroutine is not necessary (since we're already in one)
+// and can cause problem if a worker has crashed
 func (n *Node) masterSendUpdateToWorkers() {
 	var wg sync.WaitGroup
 	crashed := make(chan int)
 	for i, v := range n.State.Others {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, i int, url string, crashed chan int) {
+			defer wg.Done()
 			worker, err := utils.NodeCall(url)
 			if err != nil {
 				crashed <- i
@@ -278,7 +281,7 @@ func (n *Node) masterSendUpdateToWorkers() {
 	}
 
 	// Wait for all goroutines to finish
-	wg.Done()
+	wg.Wait()
 	// Close to no cause any leaks
 	close(crashed)
 

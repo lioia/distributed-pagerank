@@ -20,7 +20,8 @@ COPY go.mod go.sum config.json ./
 RUN go mod download
 
 # Copy Source Code
-COPY pkg/ pkg/ 
+COPY graph/ graph/ 
+COPY node/ node/ 
 COPY proto/ proto/ 
 COPY utils/ utils/
 COPY main.go .

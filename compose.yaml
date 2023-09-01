@@ -1,6 +1,7 @@
 services:
   master:
     build: .
+    stdin_open: true
     depends_on:
       rabbitmq:
         condition: service_healthy # wait for RabbitMQ to completely start
@@ -14,6 +15,7 @@ services:
       - "1234:${PORT}"
   worker:
     build: .
+    stdin_open: true
     deploy:
       replicas: 1
     depends_on:

@@ -3,12 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net"
-	"net/http"
 	"os"
-	"strings"
 
 	"github.com/lioia/distributed-pagerank/graph"
 	"github.com/lioia/distributed-pagerank/node"
