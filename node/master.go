@@ -80,7 +80,21 @@ func masterWait(n *Node) error {
 			return nil
 		}
 		// Divide the graph in message and publish to queue
-		err := n.WriteGraphToQueue()
+		err := masterWriteQueue(n, func(m map[int32]*proto.GraphNode) *proto.Job {
+			mapData := make(map[int32]*proto.Map)
+			dummyReduce := make(map[int32]*proto.Reduce)
+			for id, v := range m {
+				mapData[id] = &proto.Map{
+					Rank:     v.Rank,
+					OutLinks: v.OutLinks,
+				}
+			}
+			return &proto.Job{
+				Type:       0,
+				MapData:    mapData,
+				ReduceData: dummyReduce,
+			}
+		})
 		if err != nil {
 			return err
 		}
@@ -122,55 +136,25 @@ func masterCollect(n *Node) error {
 		n.State.Phase = int32(Convergence)
 		return nil
 	}
-	// Divide Graph in SubGraphs
-	numberOfJobs := len(n.State.Others)
-	if numberOfJobs >= len(n.State.Graph) {
-		numberOfJobs = len(n.State.Graph) - 1
-	}
-	subGraphs := make([]map[int32]*proto.GraphNode, numberOfJobs)
-	i := 0
-	for id, node := range n.State.Graph {
-		if subGraphs[i] == nil {
-			subGraphs[i] = make(map[int32]*proto.GraphNode)
-		}
-		subGraphs[i][id] = node
-		i = (i + 1) % numberOfJobs
-	}
-	// Send subgraph to work queue
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	for _, subGraph := range subGraphs {
+	err := masterWriteQueue(n, func(m map[int32]*proto.GraphNode) *proto.Job {
 		dummyMap := make(map[int32]*proto.Map)
 		reduce := make(map[int32]*proto.Reduce)
-		for id, v := range subGraph {
+		for id, v := range m {
 			reduce[id] = &proto.Reduce{
 				Sum:    n.State.Data[id],
 				EValue: v.EValue,
 			}
 		}
-		job := proto.Job{Type: 1, ReduceData: reduce, MapData: dummyMap}
-		data, err := protobuf.Marshal(&job)
-		if err != nil {
-			utils.EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
-			return err
+		return &proto.Job{
+			Type:       1,
+			ReduceData: reduce,
+			MapData:    dummyMap,
 		}
-		err = n.Queue.Channel.PublishWithContext(ctx,
-			"",
-			n.Queue.Work.Name, // routing key
-			false,             // mandatory
-			false,
-			amqp.Publishing{
-				DeliveryMode: amqp.Persistent,
-				ContentType:  "application/x-protobuf",
-				Body:         data,
-			})
-		if err != nil {
-			utils.EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
-			return err
-		}
+	})
+	if err != nil {
+		return err
 	}
 	// Switch to Reduce phase
-	n.State.Jobs = int32(numberOfJobs)
 	n.State.Phase = int32(Reduce)
 	return nil
 }
@@ -204,64 +188,6 @@ func masterConvergence(n *Node) {
 	}
 }
 
-func (n *Node) WriteGraphToQueue() error {
-	if n.Role == Worker {
-		return nil
-	}
-	// Divide Graph in SubGraphs
-	numberOfSubGraphs := len(n.State.Others)
-	if numberOfSubGraphs >= len(n.State.Graph) {
-		numberOfSubGraphs = len(n.State.Graph) - 1
-	}
-	subGraphs := make([]map[int32]*proto.GraphNode, numberOfSubGraphs)
-	i := 0
-	for id, node := range n.State.Graph {
-		if subGraphs[i] == nil {
-			subGraphs[i] = make(map[int32]*proto.GraphNode)
-		}
-		subGraphs[i][id] = node
-		i = (i + 1) % numberOfSubGraphs
-	}
-	// Send subgraph to work queue
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	for _, subGraph := range subGraphs {
-		mapData := make(map[int32]*proto.Map)
-		dummyReduce := make(map[int32]*proto.Reduce)
-		for id, v := range subGraph {
-			mapData[id] = &proto.Map{
-				Rank:     v.Rank,
-				OutLinks: v.OutLinks,
-			}
-		}
-		job := proto.Job{Type: 0, MapData: mapData, ReduceData: dummyReduce}
-		data, err := protobuf.Marshal(&job)
-		if err != nil {
-			utils.EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
-			return err
-		}
-		err = n.Queue.Channel.PublishWithContext(ctx,
-			"",
-			n.Queue.Work.Name, // routing key
-			false,             // mandatory
-			false,
-			amqp.Publishing{
-				DeliveryMode: amqp.Persistent,
-				ContentType:  "application/x-protobuf",
-				Body:         data,
-			})
-		if err != nil {
-			utils.EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
-			return err
-		}
-	}
-	// Switch to Map phase
-	n.State.Phase = int32(Map)
-	n.State.Jobs = int32(numberOfSubGraphs)
-	log.Printf("Switch to Map phase (%d jobs)\n", n.State.Jobs)
-	return nil
-}
-
 // Master send state to all workers
 func (n *Node) masterSendUpdateToWorkers() {
 	crashed := make(chan int)
@@ -292,6 +218,50 @@ func (n *Node) masterSendUpdateToWorkers() {
 		}
 	}
 	n.State.Others = newWorkers
+}
+
+func masterWriteQueue(n *Node, fn func(map[int32]*proto.GraphNode) *proto.Job) error {
+	// Divide Graph in SubGraphs
+	numberOfJobs := len(n.State.Others)
+	if numberOfJobs >= len(n.State.Graph) {
+		numberOfJobs = len(n.State.Graph) - 1
+	}
+	subGraphs := make([]map[int32]*proto.GraphNode, numberOfJobs)
+	i := 0
+	for id, node := range n.State.Graph {
+		if subGraphs[i] == nil {
+			subGraphs[i] = make(map[int32]*proto.GraphNode)
+		}
+		subGraphs[i][id] = node
+		i = (i + 1) % numberOfJobs
+	}
+	// Send subgraph to work queue
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	for _, subGraph := range subGraphs {
+		job := fn(subGraph)
+		data, err := protobuf.Marshal(job)
+		if err != nil {
+			utils.EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
+			return err
+		}
+		err = n.Queue.Channel.PublishWithContext(ctx,
+			"",
+			n.Queue.Work.Name, // routing key
+			false,             // mandatory
+			false,
+			amqp.Publishing{
+				DeliveryMode: amqp.Persistent,
+				ContentType:  "application/x-protobuf",
+				Body:         data,
+			})
+		if err != nil {
+			utils.EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
+			return err
+		}
+	}
+	n.State.Jobs = int32(numberOfJobs)
+	return nil
 }
 
 func masterReadQueue(n *Node, status chan bool) {
