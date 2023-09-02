@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"sync"
 	"time"
 
 	"github.com/lioia/distributed-pagerank/graph"
@@ -66,14 +65,18 @@ func masterWait(n *Node) error {
 		// No other node in the network -> calculating PageRank on this node
 		if len(n.State.Others) == 0 {
 			graph.SingleNodePageRank(n.State.Graph, n.State.C, n.State.Threshold)
-			log.Println("Computed Page Rank on single node")
+			fmt.Println("Computed Page Rank on single node")
 			for id, v := range n.State.Graph {
-				log.Printf("%d -> %f\n", id, v.Rank)
+				fmt.Printf("%d -> %f\n", id, v.Rank)
 			}
 			// Node Reset
-			n.State.Graph = nil
-			n.State.C = 0.0
-			n.State.Threshold = 0.0
+			n.State = &proto.State{
+				Graph:     nil,
+				C:         0.0,
+				Threshold: 0.0,
+				Jobs:      0,
+				Phase:     int32(Wait),
+			}
 			return nil
 		}
 		// Divide the graph in message and publish to queue
@@ -185,9 +188,9 @@ func masterConvergence(n *Node) {
 		// Start new computation with updated pagerank values
 		n.State.Phase = int32(Wait)
 	} else {
-		log.Println("Convergence check success")
+		fmt.Println("Convergence check success")
 		for id, v := range n.State.Graph {
-			log.Printf("%d -> %f\n", id, v.Rank)
+			fmt.Printf("%d -> %f\n", id, v.Rank)
 		}
 		// Node Reset
 		n.State = &proto.State{
@@ -260,28 +263,19 @@ func (n *Node) WriteGraphToQueue() error {
 }
 
 // Master send state to all workers
-// TODO: goroutine is not necessary (since we're already in one)
-// and can cause problem if a worker has crashed
 func (n *Node) masterSendUpdateToWorkers() {
-	var wg sync.WaitGroup
 	crashed := make(chan int)
 	for i, v := range n.State.Others {
-		wg.Add(1)
-		go func(wg *sync.WaitGroup, i int, url string, crashed chan int) {
-			defer wg.Done()
-			worker, err := utils.NodeCall(url)
-			if err != nil {
-				crashed <- i
-			}
-			_, err = worker.Client.StateUpdate(worker.Ctx, n.State)
-			if err != nil {
-				crashed <- i
-			}
-		}(&wg, i, v, crashed)
+		worker, err := utils.NodeCall(v)
+		if err != nil {
+			crashed <- i
+		}
+		_, err = worker.Client.StateUpdate(worker.Ctx, n.State)
+		if err != nil {
+			crashed <- i
+		}
 	}
 
-	// Wait for all goroutines to finish
-	wg.Wait()
 	// Close to no cause any leaks
 	close(crashed)
 
