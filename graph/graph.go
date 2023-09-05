@@ -49,8 +49,9 @@ func LoadGraphResource(resource string) (g map[int32]*proto.GraphNode, err error
 }
 
 func LoadGraphFromBytes(contents []byte) (map[int32]*proto.GraphNode, error) {
-	g := make(map[int32]*proto.GraphNode)
 	// Split file contents in lines (based on newline delimiter)
+	graph := make(map[int32]*proto.GraphNode)
+	numberOfOutlinks := make(map[int32]int32)
 	lines := strings.Split(strings.ReplaceAll(string(contents), "\r\n", "\n"), "\n")
 	for _, line := range lines {
 		from, to, skip, err := convertLine(line)
@@ -62,32 +63,39 @@ func LoadGraphFromBytes(contents []byte) (map[int32]*proto.GraphNode, error) {
 		if skip {
 			continue
 		}
-		// First time encoutering this node, so it has to be created
-		if g[from] == nil {
-			g[from] = &proto.GraphNode{Id: from}
+		if graph[from] == nil {
+			graph[from] = &proto.GraphNode{
+				InLinks: make(map[int32]*proto.GraphNodeInfo),
+			}
+			numberOfOutlinks[from] = 0
 		}
-		if g[to] == nil {
-			g[to] = &proto.GraphNode{Id: to}
+		if graph[to] == nil {
+			graph[to] = &proto.GraphNode{
+				InLinks: make(map[int32]*proto.GraphNodeInfo),
+			}
 		}
-		// Adding the outlink to the current node
-		g[from].OutLinks = append(g[from].OutLinks, to)
+		graph[to].InLinks[from] = &proto.GraphNodeInfo{}
+		numberOfOutlinks[from] += 1
 	}
-
-	// Initialize ranks and e values
-	initialRank := 1.0 / float64(len(g))
+	initialRank := 1.0 / float64(len(graph))
 	total := 0.0
-	for id := range g {
+	for _, u := range graph {
 		probability := rand.Float64()
-		g[id].EValue = probability
-		g[id].Rank = initialRank
+		u.Rank = initialRank
+		u.E = probability
 		total += probability
+		for j, v := range u.InLinks {
+			v.Rank = initialRank
+			v.Outlinks = numberOfOutlinks[j]
+		}
 	}
 
-	// Normalize probability
-	for id := range g {
-		g[id].EValue /= total
+	// Normalize E values (sum i equal to 1)
+	for _, v := range graph {
+		v.E /= total
 	}
-	return g, nil
+
+	return graph, nil
 }
 
 func convertLine(line string) (int32, int32, bool, error) {

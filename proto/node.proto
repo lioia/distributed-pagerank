@@ -3,6 +3,8 @@ syntax = "proto3";
 import "google/protobuf/empty.proto";
 import "google/protobuf/wrappers.proto";
 
+import "proto/common.proto";
+
 option go_package = "github.com/lioia/distributed-pagerank/proto";
 
 package proto;
@@ -21,35 +23,32 @@ service Node {
 
 message Health {
   oneof value {
-    State state = 1; // If the worker was not known to the master (missed last
-                     // state update)
-    google.protobuf.Empty empty = 2; // If the worker was known to the master
+    // Worker was not known to the master (missed last state update)
+    State state = 1;
+    // Worker was known to master (already up to date)
+    google.protobuf.Empty empty = 2;
   }
 }
 
 message State {
   int32 phase = 1;                 // Current Node Phase
-  map<int32, GraphNode> graph = 2; // Graph to be computed
-  int32 jobs = 4;                  // Number of jobs added to the queue
-  map<int32, double> data = 5;     // Collected data from map or reduce phase
-  double c = 6;                    // PageRank Parameter
-  double threshold = 7;            // PageRank Parameter
-  repeated string others = 8;      // Other nodes in the network
+  map<int32, GraphNode> graph = 2; // Graph
+  int32 jobs = 3;                  // Number of jobs added to the queue
+  double c = 4;                    // PageRank Parameter
+  double threshold = 5;            // PageRank Parameter
+  repeated string others = 6;      // Other nodes in the network
 }
 
 message GraphNode {
-  int32 id = 1;                // Node ID
-  double rank = 3;             // Current PageRank
-  double eValue = 4;           // E probability vector for this node
-  repeated int32 outLinks = 2; // Node IDs this node points to
+  double rank = 1;                       // Current PageRank
+  double e = 2;                          // E probability vector for this node
+  map<int32, GraphNodeInfo> inLinks = 3; // Incoming nodes
 }
 
 message Join {
   string workQueue = 1;   // Work queue name
   string resultQueue = 2; // Result queue name
-  double c = 3;           // PageRank parameter
-  double threshold = 4;   // PageRank parameter
-  State state = 5;        // Master node state
+  State state = 3;        // Master node state
 }
 
 message Candidacy {

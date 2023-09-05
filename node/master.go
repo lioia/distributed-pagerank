@@ -16,21 +16,16 @@ import (
 )
 
 func (n *Node) masterUpdate() {
-	status := make(chan bool)
-	go masterReadQueue(n, status)
+	go masterReadQueue(n)
 	for {
 		switch n.State.Phase {
 		case int32(Wait):
 			err := masterWait(n)
 			utils.FailOnError("Could not execute Wait phase", err)
-			log.Println("Completed Wait phase")
 		case int32(Map):
-			numberOfMessages := utils.GetNumberOfQueueMessages(n.Queue.Result.Name)
-			if n.State.Jobs == int32(numberOfMessages) {
-				status <- true
-				<-status
+			if n.State.Jobs == n.Responses {
+				n.Responses = 0
 				n.State.Phase = int32(Collect)
-				go n.masterSendUpdateToWorkers()
 				log.Println("Completed Map phase")
 				break
 			}
@@ -40,12 +35,9 @@ func (n *Node) masterUpdate() {
 			log.Println("Completed Collect phase")
 			log.Printf("Switch to Reduce phase (%d jobs)\n", n.State.Jobs)
 		case int32(Reduce):
-			numberOfMessages := utils.GetNumberOfQueueMessages(n.Queue.Result.Name)
-			if n.State.Jobs == int32(numberOfMessages) {
-				status <- true
-				<-status
+			if n.State.Jobs == n.Responses {
+				n.Responses = 0
 				n.State.Phase = int32(Convergence)
-				go n.masterSendUpdateToWorkers()
 				log.Println("Completed Reduce phase")
 				break
 			}
@@ -70,6 +62,7 @@ func masterWait(n *Node) error {
 				fmt.Printf("%d -> %f\n", id, v.Rank)
 			}
 			// Node Reset
+			// Next time on wait, it will ask for a new graph
 			n.State = &proto.State{
 				Graph:     nil,
 				C:         0.0,
@@ -77,17 +70,16 @@ func masterWait(n *Node) error {
 				Jobs:      0,
 				Phase:     int32(Wait),
 			}
+			n.Data = utils.NewSafeMap[int32, float64]()
+			log.Println("Completed Wait phase")
 			return nil
 		}
-		// Divide the graph in message and publish to queue
+		go n.masterSendUpdateToWorkers()
 		err := masterWriteQueue(n, func(m map[int32]*proto.GraphNode) *proto.Job {
 			mapData := make(map[int32]*proto.Map)
 			dummyReduce := make(map[int32]*proto.Reduce)
 			for id, v := range m {
-				mapData[id] = &proto.Map{
-					Rank:     v.Rank,
-					OutLinks: v.OutLinks,
-				}
+				mapData[id] = &proto.Map{InLinks: v.InLinks}
 			}
 			return &proto.Job{
 				Type:       0,
@@ -98,31 +90,32 @@ func masterWait(n *Node) error {
 		if err != nil {
 			return err
 		}
+		log.Println("Completed Wait phase")
+		log.Printf("Switch to Map phase (%d jobs)\n", n.State.Jobs)
 		n.State.Phase = int32(Map)
-		// Send state update to worker nodes
-		go n.masterSendUpdateToWorkers()
-	} else {
-		// Ask user configuration
-		fmt.Println("Start new computation:")
-		c := utils.ReadFloat64FromStdin("Enter c-value [in range (0.0..1.0)] ")
-		threshold := utils.ReadFloat64FromStdin("Enter threshold [in range (0.0..1.0)] ")
-		var g map[int32]*proto.GraphNode
-		var input string
-		for {
-			fmt.Printf("Enter graph file [local or network resource]: ")
-			fmt.Scanln(&input)
-			var err error
-			g, err = graph.LoadGraphResource(input)
-			if err != nil {
-				fmt.Println("Graph file could not be loaded correctly. Try again")
-				continue
-			}
-			break
-		}
-		n.State.Graph = g
-		n.State.C = c
-		n.State.Threshold = threshold
+		return nil
 	}
+	// Ask user configuration
+	fmt.Println("Start new computation:")
+	c := utils.ReadFloat64FromStdin("Enter c-value [in range (0.0..1.0)] ")
+	threshold := utils.ReadFloat64FromStdin("Enter threshold [in range (0.0..1.0)] ")
+	var g map[int32]*proto.GraphNode
+	var input string
+	for {
+		fmt.Printf("Enter graph file [local or network resource]: ")
+		fmt.Scanln(&input)
+		var err error
+		g, err = graph.LoadGraphResource(input)
+		if err != nil {
+			fmt.Println("Graph file could not be loaded correctly. Try again")
+			continue
+		}
+		break
+	}
+	n.Data = utils.NewSafeMap[int32, float64]()
+	n.State.Graph = g
+	n.State.C = c
+	n.State.Threshold = threshold
 	// On next Wait phase, it will send the subgraphs to the queue
 	return nil
 }
@@ -131,18 +124,21 @@ func masterCollect(n *Node) error {
 	if len(n.State.Others) == 0 {
 		ranks := make(map[int32]float64)
 		for id, node := range n.State.Graph {
-			ranks[id] = n.State.C*n.State.Data[id] + (1-n.State.C)*node.EValue
+			ranks[id] = n.State.C*n.Data.Get(id) + (1-n.State.C)*node.E
 		}
 		n.State.Phase = int32(Convergence)
 		return nil
 	}
+	go n.masterSendUpdateToWorkers()
+	data := n.Data.Clone()
+	n.Data.Reset()
 	err := masterWriteQueue(n, func(m map[int32]*proto.GraphNode) *proto.Job {
 		dummyMap := make(map[int32]*proto.Map)
 		reduce := make(map[int32]*proto.Reduce)
 		for id, v := range m {
 			reduce[id] = &proto.Reduce{
-				Sum:    n.State.Data[id],
-				EValue: v.EValue,
+				Sum: data[id],
+				E:   v.E,
 			}
 		}
 		return &proto.Job{
@@ -160,20 +156,34 @@ func masterCollect(n *Node) error {
 }
 
 func masterConvergence(n *Node) {
-	convergence := 0.0
-	for id, newRank := range n.State.Data {
+	var convergence float64
+	for _, id := range n.Data.Keys() {
+		newRank := n.Data.Get(id)
 		oldRank := n.State.Graph[id].Rank
 		convergence += math.Abs(newRank - oldRank)
 		// After calculating the convergence value, it can be safely updated
 		n.State.Graph[id].Rank = newRank
 	}
-	// Does not converge -> iterate
+	// Update InLinks rank values
+	for _, u := range n.State.Graph {
+		for j, v := range u.InLinks {
+			v.Rank = n.State.Graph[j].Rank
+		}
+	}
 	if convergence > n.State.Threshold {
+		// Does not converge -> iterate
+		log.Printf("Convergence check failed (%f)", convergence)
 		// Start new computation with updated pagerank values
 		n.State.Phase = int32(Wait)
 	} else {
-		fmt.Println("Convergence check success")
+		log.Println("Convergence check success")
+		// Normalize values
+		rankSum := 0.0
+		for _, node := range n.State.Graph {
+			rankSum += node.Rank
+		}
 		for id, v := range n.State.Graph {
+			n.State.Graph[id].Rank /= rankSum
 			fmt.Printf("%d -> %f\n", id, v.Rank)
 		}
 		// Node Reset
@@ -184,8 +194,8 @@ func masterConvergence(n *Node) {
 			Jobs:      0,
 			Phase:     int32(Wait),
 		}
-		go n.masterSendUpdateToWorkers()
 	}
+	n.Data = utils.NewSafeMap[int32, float64]()
 }
 
 // Master send state to all workers
@@ -198,6 +208,7 @@ func (n *Node) masterSendUpdateToWorkers() {
 		}
 		_, err = worker.Client.StateUpdate(worker.Ctx, n.State)
 		if err != nil {
+			log.Printf("Worker %s crashed", v)
 			crashed <- i
 		}
 	}
@@ -224,7 +235,7 @@ func masterWriteQueue(n *Node, fn func(map[int32]*proto.GraphNode) *proto.Job) e
 	// Divide Graph in SubGraphs
 	numberOfJobs := len(n.State.Others)
 	if numberOfJobs >= len(n.State.Graph) {
-		numberOfJobs = len(n.State.Graph) - 1
+		numberOfJobs = len(n.State.Graph)
 	}
 	subGraphs := make([]map[int32]*proto.GraphNode, numberOfJobs)
 	i := 0
@@ -242,7 +253,6 @@ func masterWriteQueue(n *Node, fn func(map[int32]*proto.GraphNode) *proto.Job) e
 		job := fn(subGraph)
 		data, err := protobuf.Marshal(job)
 		if err != nil {
-			utils.EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
 			return err
 		}
 		err = n.Queue.Channel.PublishWithContext(ctx,
@@ -256,7 +266,6 @@ func masterWriteQueue(n *Node, fn func(map[int32]*proto.GraphNode) *proto.Job) e
 				Body:         data,
 			})
 		if err != nil {
-			utils.EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
 			return err
 		}
 	}
@@ -264,8 +273,7 @@ func masterWriteQueue(n *Node, fn func(map[int32]*proto.GraphNode) *proto.Job) e
 	return nil
 }
 
-func masterReadQueue(n *Node, status chan bool) {
-	log.Println("Master registered consumer")
+func masterReadQueue(n *Node) {
 	// Register consumer
 	msgs, err := n.Queue.Channel.Consume(
 		n.Queue.Result.Name, // queue
@@ -277,32 +285,26 @@ func masterReadQueue(n *Node, status chan bool) {
 		nil,                 // args
 	)
 	utils.FailOnError("Could not register a consumer", err)
-	for {
-		// Wait for status update
-		<-status
-		n.State.Data = make(map[int32]float64)
-
-		for i := 0; i < int(n.State.Jobs); i++ {
-			msg := <-msgs
-			var result proto.Result
-			err := protobuf.Unmarshal(msg.Body, &result)
-			// FIXME: better error handling
-			if err != nil {
-				utils.FailOnNack(msg, err)
-				continue
-			}
-			for id, v := range result.Values {
-				n.State.Data[id] += v
-			}
-
-			// Ack
-			// FIXME: better error handling
-			if err := msg.Ack(false); err != nil {
-				utils.FailOnNack(msg, err)
-				continue
-			}
+	log.Println("Master registered consumer")
+	for msg := range msgs {
+		var result proto.Result
+		err := protobuf.Unmarshal(msg.Body, &result)
+		// FIXME: better error handling
+		if err != nil {
+			utils.FailOnNack(msg, err)
+			continue
 		}
-		// Correctly read every message
-		status <- true
+		for id, v := range result.Values {
+			n.Data.Increment(id, v)
+		}
+
+		// Ack
+		// FIXME: better error handling
+		if err := msg.Ack(false); err != nil {
+			utils.FailOnNack(msg, err)
+			continue
+		}
+		// Correctly read message
+		n.Responses += 1
 	}
 }

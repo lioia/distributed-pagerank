@@ -1,35 +1,62 @@
 services:
   master:
     build: .
-    stdin_open: true
+    stdin_open: true # required to pass inputs 
     depends_on:
       rabbitmq:
         condition: service_healthy # wait for RabbitMQ to completely start
     environment:
-      - "MASTER=${MASTER}"
-      - "PORT=${PORT}"
+      - "HOST=master"
       - "RABBIT_HOST=${RABBIT_HOST:-rabbitmq}"
       - "RABBIT_USER=${RABBIT_USER:-guest}"
       - "RABBIT_PASSWORD=${RABBIT_PASSWORD:-guest}"
+    env_file:
+      - .env
     ports:
       - "1234:${PORT}"
-  worker:
+    healthcheck:
+      test: [ "CMD", "ping", "-c", "3", "localhost:${PORT}" ]
+      interval: 10s
+      timeout: 2s
+      retries: 5
+  worker_1:
     build: .
-    stdin_open: true
-    deploy:
-      replicas: 1
     depends_on:
-      - master
-      - rabbitmq
+      master:
+        condition: service_healthy # wait for master gRPC server to start
     environment:
-      - "MASTER=${MASTER}"
-      - "PORT=${PORT}"
+      - "HOST=worker_1"
       - "RABBIT_HOST=${RABBIT_HOST:-rabbitmq}"
       - "RABBIT_USER=${RABBIT_USER:-guest}"
       - "RABBIT_PASSWORD=${RABBIT_PASSWORD:-guest}"
-      - "HEALTH_CHECK=${HEALTH_CHECK}"
+    env_file:
+      - .env
+  worker_2:
+    build: .
+    depends_on:
+      master:
+        condition: service_healthy # wait for master gRPC server to start
+    environment:
+      - "HOST=worker_2"
+      - "RABBIT_HOST=${RABBIT_HOST:-rabbitmq}"
+      - "RABBIT_USER=${RABBIT_USER:-guest}"
+      - "RABBIT_PASSWORD=${RABBIT_PASSWORD:-guest}"
+    env_file:
+      - .env
+  worker_3:
+    build: .
+    depends_on:
+      master:
+        condition: service_healthy # wait for master gRPC server to start
+    environment:
+      - "HOST=worker_3"
+      - "RABBIT_HOST=${RABBIT_HOST:-rabbitmq}"
+      - "RABBIT_USER=${RABBIT_USER:-guest}"
+      - "RABBIT_PASSWORD=${RABBIT_PASSWORD:-guest}"
+    env_file:
+      - .env
   rabbitmq:
-    image: rabbitmq:management-alpine
+    image: rabbitmq:alpine
     ports:
       - "5672:5672"
       - "15672:15672"

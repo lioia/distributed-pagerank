@@ -20,13 +20,7 @@ Setup `config.json` (not required)
   --go_opt=paths=source_relative \
   --go-grpc_out=. \
   --go-grpc_opt=paths=source_relative \
-  proto/node.proto && \
-  protoc \
-  --go_out=. \
-  --go_opt=paths=source_relative \
-  --go-grpc_out=. \
-  --go-grpc_opt=paths=source_relative \
-  proto/jobs.proto
+  proto/*.proto
   ```
 - Node: `go build`
 
@@ -42,3 +36,5 @@ docker compose up --build
 - MASTER env var, has to be set like this: `<master_service_name>:<master_port>`
 - To enter input to the master node, attach to the Docker image:
   `docker attach <master-service-name>`
+
+<!-- TODO: convergence is always increasing -->

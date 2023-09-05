@@ -2,6 +2,7 @@ package node
 
 import (
 	"github.com/lioia/distributed-pagerank/proto"
+	"github.com/lioia/distributed-pagerank/utils"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -25,12 +26,18 @@ const (
 )
 
 type Node struct {
-	State      *proto.State // Shared node state
-	Role       Role         // What this node has to do
-	Connection string       // This node connection information
-	Queue      Queue        // Queue information
-	Master     string       // Master node (set if this node is a worker)
-	Candidacy  int64        // Timestamp of new candidacy (0: no candidate)
+	State       *proto.State // Shared node state
+	Role        Role         // What this node has to do
+	Connection  string       // This node connection information
+	Queue       Queue        // Queue information
+	Master      string       // Master node (set if this node is a worker)
+	Candidacy   int64        // Timestamp of new candidacy (0: no candidate)
+	QueueReader chan bool    // Cancel channel for worker goroutine
+	Responses   int32        // Master state: number of read result messages
+	// Master state: Data collected from result queue
+	// Standard map is not thread safe
+	// NOTE: look into sync.Map
+	Data *utils.SafeMap[int32, float64]
 }
 
 type Queue struct {

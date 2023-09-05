@@ -12,14 +12,26 @@ import (
 )
 
 func (n *Node) workerUpdate() {
-	healthCheck := utils.ReadIntEnvVarOr("HEALTH_CHECK", 5000)
-	// Worker Health Check
 	go func() {
-		for {
-			n.WorkerHealthCheck()
-			time.Sleep(time.Duration(healthCheck) * time.Millisecond)
+		select {
+		case <-n.QueueReader:
+			log.Println("Queue Reading goroutine canceled")
+			return
+		default:
+			for {
+				readQueue(n)
+			}
 		}
 	}()
+	// Worker Health Check
+	healthCheck := utils.ReadIntEnvVarOr("HEALTH_CHECK", 5000)
+	for {
+		n.WorkerHealthCheck()
+		time.Sleep(time.Duration(healthCheck) * time.Millisecond)
+	}
+}
+
+func readQueue(n *Node) {
 	// Register consumer
 	msgs, err := n.Queue.Channel.Consume(
 		n.Queue.Work.Name, // queue
@@ -31,71 +43,64 @@ func (n *Node) workerUpdate() {
 		nil,               // args
 	)
 	utils.FailOnError("Could not register a consumer", err)
-	var forever chan struct{}
-
+	log.Println("Worker registered consumer")
 	// Queue Message Handler
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	go func() {
-		for d := range msgs {
-			// Get data from bytes
-			var job proto.Job
-			err := protobuf.Unmarshal(d.Body, &job)
-			if err != nil {
-				utils.FailOnNack(d, err)
-				continue
-			}
-			result := proto.Result{}
-			// Create result value
-			// Handle job based on type
-			if job.Type == 0 {
-				log.Println("Computing Map Job")
-				result.Values = n.workerMap(job.MapData)
-				log.Println("Completed Map Job")
-			} else if job.Type == 1 {
-				log.Println("Computing Reduce Job")
-				result.Values = n.workerReduce(job.ReduceData)
-				log.Println("Completed Reduce Job")
-			}
-			// Publish result to Result queue
-			data, err := protobuf.Marshal(&result)
-			if err != nil {
-				utils.FailOnNack(d, err)
-				continue
-			}
-			err = n.Queue.Channel.PublishWithContext(ctx,
-				"",
-				n.Queue.Result.Name, // routing key
-				false,               // mandatory
-				false,
-				amqp.Publishing{
-					DeliveryMode: amqp.Persistent,
-					ContentType:  "application/x-protobuf",
-					Body:         data,
-				})
-			if err != nil {
-				utils.FailOnNack(d, err)
-				continue
-			}
-
-			// Ack
-			if err := d.Ack(false); err != nil {
-				utils.FailOnNack(d, err)
-				continue
-			}
+	for d := range msgs {
+		// Get data from bytes
+		var job proto.Job
+		err := protobuf.Unmarshal(d.Body, &job)
+		if err != nil {
+			utils.FailOnNack(d, err)
+			continue
 		}
-	}()
+		result := proto.Result{}
+		// Create result value
+		// Handle job based on type
+		if job.Type == 0 {
+			log.Println("Computing Map Job")
+			result.Values = n.workerMap(job.MapData)
+			log.Println("Completed Map Job")
+		} else if job.Type == 1 {
+			log.Println("Computing Reduce Job")
+			result.Values = n.workerReduce(job.ReduceData)
+			log.Println("Completed Reduce Job")
+		}
+		// Publish result to Result queue
+		data, err := protobuf.Marshal(&result)
+		if err != nil {
+			utils.FailOnNack(d, err)
+			continue
+		}
+		err = n.Queue.Channel.PublishWithContext(ctx,
+			"",
+			n.Queue.Result.Name, // routing key
+			false,               // mandatory
+			false,
+			amqp.Publishing{
+				DeliveryMode: amqp.Persistent,
+				ContentType:  "application/x-protobuf",
+				Body:         data,
+			})
+		if err != nil {
+			utils.FailOnNack(d, err)
+			continue
+		}
 
-	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
-	<-forever
+		// Ack
+		if err := d.Ack(false); err != nil {
+			utils.FailOnNack(d, err)
+			continue
+		}
+	}
 }
 
 func (n *Node) workerMap(subGraph map[int32]*proto.Map) map[int32]float64 {
 	contributions := make(map[int32]float64)
-	for _, u := range subGraph {
-		nV := float64(len(u.OutLinks))
-		for _, v := range u.OutLinks {
-			contributions[v] = u.Rank / nV
+	for id, u := range subGraph {
+		for _, v := range u.InLinks {
+			contributions[id] += v.Rank / float64(v.Outlinks)
 		}
 	}
 	return contributions
@@ -104,7 +109,7 @@ func (n *Node) workerMap(subGraph map[int32]*proto.Map) map[int32]float64 {
 func (n *Node) workerReduce(reduce map[int32]*proto.Reduce) map[int32]float64 {
 	ranks := make(map[int32]float64)
 	for id, v := range reduce {
-		ranks[id] = n.State.C*v.Sum + (1-n.State.C)*v.EValue
+		ranks[id] = n.State.C*v.Sum + (1-n.State.C)*v.E
 	}
 	return ranks
 }
@@ -167,11 +172,15 @@ func (n *Node) workerCandidacy() {
 		}
 	}
 	n.State.Others = newWorkers
-	// NOTE: to reduce state updates, probably they can happen only on
-	// start, collect and convergence phases (empty queue)
-	// So the new master should empty the queue
-	// TODO: cancel reader and health check goroutines
 	if elected {
+		// Stop goroutines
+		n.QueueReader <- true
+		// Switch to master
 		n.Role = Master
+		// Empty queues
+		utils.EmptyQueue(n.Queue.Channel, n.Queue.Work.Name)
+		utils.EmptyQueue(n.Queue.Channel, n.Queue.Result.Name)
+		// Start master update
+		n.Update()
 	}
 }

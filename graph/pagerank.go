@@ -1,7 +1,7 @@
 package graph
 
 import (
-	"fmt"
+	"log"
 	"math"
 
 	"github.com/lioia/distributed-pagerank/proto"
@@ -10,12 +10,11 @@ import (
 // R_(i + 1) (u) = c sum_(v in B_u) (R_i(v) / N_v) + (1 - c)E(u)
 func SingleNodePageRank(graph map[int32]*proto.GraphNode, c, threshold float64) {
 	for i := 0; i < 100; i++ {
-		sum := make(map[int32]float64)
-		for _, u := range graph {
+		sum := make(map[int32]float64, len(graph))
+		for id, u := range graph {
 			// Map Phase: sum_(v in B_u) (R_i(v) / N_v)
-			nV := float64(len(u.OutLinks))
-			for _, v := range u.OutLinks {
-				sum[v] += u.Rank / nV
+			for _, v := range u.InLinks {
+				sum[id] += v.Rank / float64(v.Outlinks)
 			}
 		}
 
@@ -23,13 +22,30 @@ func SingleNodePageRank(graph map[int32]*proto.GraphNode, c, threshold float64) 
 		convergenceDiff := 0.0
 		for id, node := range graph {
 			oldRank := node.Rank
-			newRank := c*sum[id] + (1-c)*node.EValue
+			newRank := c*sum[id] + (1-c)*node.E
 			convergenceDiff += math.Abs(newRank - oldRank)
 			graph[id].Rank = newRank
 		}
+		// Update InLinks rank
+		for _, node := range graph {
+			for j, in := range node.InLinks {
+				in.Rank = graph[j].Rank
+			}
+		}
+
 		if convergenceDiff < threshold {
-			fmt.Printf("Converged after %d iteration(s)\n", i+1)
-			break
+			log.Printf("Converged after %d iteration(s)\n", i+1)
+			// Normalize values
+			rankSum := 0.0
+			for _, node := range graph {
+				rankSum += node.Rank
+			}
+			for i := range graph {
+				graph[i].Rank /= rankSum
+			}
+			return
+		} else {
+			log.Printf("Convergence check failed (%f)", convergenceDiff)
 		}
 	}
 }

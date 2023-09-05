@@ -25,6 +25,8 @@ func main() {
 	utils.FailOnError("Failed to read environment variables", err)
 	rabbitUser := utils.ReadStringEnvVarOr("RABBIT_USER", "guest")
 	rabbitPass := utils.ReadStringEnvVarOr("RABBIT_PASSWORD", "guest")
+	host, err := utils.ReadStringEnvVar("HOST")
+	utils.FailOnError("Failed to read environment variables", err)
 	port, err := utils.ReadIntEnvVar("PORT")
 	utils.FailOnError("Failed to read environment variables", err)
 
@@ -44,11 +46,9 @@ func main() {
 
 	// Base node values
 	n := node.Node{
-		State: &proto.State{
-			Phase: int32(node.Wait),
-			Data:  make(map[int32]float64),
-		},
-		Role: node.Master,
+		State: &proto.State{Phase: int32(node.Wait)},
+		Data:  utils.NewSafeMap[int32, float64](),
+		Role:  node.Master,
 		Queue: node.Queue{
 			Conn:    queueConn,
 			Channel: ch,
@@ -65,7 +65,7 @@ func main() {
 	utils.FailOnError("Could not create connection to the masterClient node", err)
 	join, err := masterClient.Client.NodeJoin(
 		masterClient.Ctx,
-		&wrapperspb.StringValue{Value: lis.Addr().String()},
+		&wrapperspb.StringValue{Value: fmt.Sprintf("%s:%d", host, port)},
 	)
 	if err != nil {
 		// There is no node at the address -> creating a new network
@@ -88,6 +88,7 @@ func main() {
 		n.State = join.State
 		workQueueName = join.WorkQueue
 		resultQueueName = join.ResultQueue
+		n.QueueReader = make(chan bool)
 	}
 	// Queue declaration
 	work, err := utils.DeclareQueue(workQueueName, ch)
@@ -98,15 +99,19 @@ func main() {
 	n.Queue.Result = &result
 
 	// Running gRPC server for internal network communication in a goroutine
+	status := make(chan bool)
 	go func() {
 		// Creating gRPC server
 		defer lis.Close()
 		server := grpc.NewServer()
 		proto.RegisterNodeServer(server, &node.NodeServerImpl{Node: &n})
-		log.Printf("Starting %s node at %v\n", node.RoleToString(n.Role), lis.Addr())
+		log.Printf("Starting %s node at %s:%d\n", node.RoleToString(n.Role), host, port)
+		status <- true
 		err = server.Serve(lis)
 		utils.FailOnError("Failed to serve", err)
 	}()
+	// Waiting for gRPC server to start
+	<-status
 	// Node Update
 	n.Update()
 }

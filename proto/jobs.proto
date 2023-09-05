@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "proto/common.proto";
+
 option go_package = "github.com/lioia/distributed-pagerank/proto";
 
 package proto;
@@ -11,13 +13,12 @@ message Job {
 }
 
 message Map {
-  double rank = 1;             // Current PageRank
-  repeated int32 outLinks = 2; // Node IDs this node points to
+  map<int32, GraphNodeInfo> inLinks = 1; // ID -> Rank and Outlink info
 }
 
 message Reduce {
-  double sum = 1;    // Value from Collect phase
-  double eValue = 2; // E-value (PageRank parameter)
+  double sum = 1; // Value from Collect phase
+  double e = 2;   // E (PageRank parameter)
 }
 
 message Result {
