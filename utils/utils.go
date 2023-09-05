@@ -44,9 +44,9 @@ func (c Client) Close() {
 	c.conn.Close()
 }
 
-func FailOnError(msg string, err error) {
+func FailOnError(format string, err error, v ...any) {
 	if err != nil {
-		log.Fatalf("%s: %v", msg, err)
+		log.Fatalf("%s: %v", fmt.Sprintf(format, v...), err)
 	}
 }
 

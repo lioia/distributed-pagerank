@@ -34,7 +34,7 @@ func ReadEnvVars() EnvVars {
 	rabbitUser := readStringEnvVarOr("RABBIT_USER", "guest")
 	rabbitPass := readStringEnvVarOr("RABBIT_PASSWORD", "guest")
 	workQueue := readStringEnvVarOr("WORK_QUEUE", "work")
-	resultQueue := readStringEnvVarOr("RESULT_QUEUE", "work")
+	resultQueue := readStringEnvVarOr("RESULT_QUEUE", "result")
 	return EnvVars{
 		Master: master, Host: host, Port: port,
 		RabbitHost: rabbitHost, RabbitUser: rabbitUser, RabbitPass: rabbitPass,
