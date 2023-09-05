@@ -72,12 +72,11 @@ func main() {
 	resultQueueName := "result"
 
 	// Contact master node to join the network
-	masterClient, err := utils.NodeCall(master)
-	defer masterClient.CancelFunc()
-	defer masterClient.Conn.Close()
-	utils.FailOnError("Could not create connection to the masterClient node", err)
-	join, err := masterClient.Client.NodeJoin(
-		masterClient.Ctx,
+	client, err := utils.NodeCall(master)
+	utils.FailOnError("Failed to create connection to the master node", err)
+	defer client.Close()
+	join, err := client.Client.NodeJoin(
+		client.Ctx,
 		&wrapperspb.StringValue{Value: fmt.Sprintf("%s:%d", host, port)},
 	)
 	if err != nil {
@@ -140,14 +139,14 @@ func loadConfiguration() (c float64, threshold float64, g map[int32]*proto.Graph
 	// File exists -> load configuration
 	bytes, err := os.ReadFile("config.json")
 	if err != nil {
-		log.Printf("Could not read configuration file: %v", err)
+		log.Printf("Failed to read configuration file: %v", err)
 		return
 	}
 	// Parse config.json into a Golang struct
 	var config node.Config
 	err = json.Unmarshal(bytes, &config)
 	if err != nil {
-		log.Printf("Could not parse configuration file: %v", err)
+		log.Printf("Failed to parse configuration file: %v", err)
 		return
 	}
 	// Parse graph file into graph representation

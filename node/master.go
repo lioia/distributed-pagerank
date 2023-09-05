@@ -206,6 +206,7 @@ func (n *Node) masterSendUpdateToWorkers() {
 		if err != nil {
 			crashed <- i
 		}
+		defer worker.Close()
 		_, err = worker.Client.StateUpdate(worker.Ctx, n.State)
 		if err != nil {
 			log.Printf("Worker %s crashed", v)

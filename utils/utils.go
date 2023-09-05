@@ -14,10 +14,10 @@ import (
 )
 
 type Client struct {
-	Conn       *grpc.ClientConn
-	Client     proto.NodeClient
-	Ctx        context.Context
-	CancelFunc context.CancelFunc
+	Client proto.NodeClient
+	Ctx    context.Context
+	conn   *grpc.ClientConn
+	cancel context.CancelFunc
 }
 
 // Utility function to create a gRPC client to `url`
@@ -33,16 +33,16 @@ func NodeCall(url string) (Client, error) {
 	client := proto.NewNodeClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	return Client{
-		Conn:       conn,
-		Client:     client,
-		Ctx:        ctx,
-		CancelFunc: cancel,
+		conn:   conn,
+		Client: client,
+		Ctx:    ctx,
+		cancel: cancel,
 	}, nil
 }
 
 func (c Client) Close() {
-	c.CancelFunc()
-	c.Conn.Close()
+	c.cancel()
+	c.conn.Close()
 }
 
 func FailOnError(msg string, err error) {

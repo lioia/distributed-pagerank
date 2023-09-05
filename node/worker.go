@@ -121,8 +121,7 @@ func (n *Node) WorkerHealthCheck() {
 		n.workerCandidacy()
 		return
 	}
-	defer master.Conn.Close()
-	defer master.CancelFunc()
+	defer master.Close()
 	health, err := master.Client.HealthCheck(master.Ctx, nil)
 	if err != nil {
 		// Master didn't respond -> assuming crash
@@ -150,8 +149,7 @@ func (n *Node) workerCandidacy() {
 			crashedWorkers[i] = true
 			continue
 		}
-		defer worker.Conn.Close()
-		defer worker.CancelFunc()
+		defer worker.Close()
 		ack, err := worker.Client.MasterCandidate(worker.Ctx, candidacy)
 		if err != nil {
 			crashedWorkers[i] = true
