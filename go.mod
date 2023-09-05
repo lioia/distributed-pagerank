@@ -3,6 +3,7 @@ module github.com/lioia/distributed-pagerank
 go 1.20
 
 require (
+	github.com/joho/godotenv v1.5.1
 	github.com/rabbitmq/amqp091-go v1.8.1
 	google.golang.org/grpc v1.57.0
 	google.golang.org/protobuf v1.31.0

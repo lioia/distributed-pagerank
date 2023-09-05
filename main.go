@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/lioia/distributed-pagerank/graph"
 	"github.com/lioia/distributed-pagerank/node"
 	"github.com/lioia/distributed-pagerank/proto"
@@ -19,16 +20,28 @@ import (
 
 func main() {
 	// Read environment variables
+	errored := false
 	master, err := utils.ReadStringEnvVar("MASTER")
-	utils.FailOnError("Failed to read environment variables", err)
+	if err != nil {
+		errored = true
+	}
 	rabbitHost, err := utils.ReadStringEnvVar("RABBIT_HOST")
-	utils.FailOnError("Failed to read environment variables", err)
+	if err != nil {
+		errored = true
+	}
 	rabbitUser := utils.ReadStringEnvVarOr("RABBIT_USER", "guest")
 	rabbitPass := utils.ReadStringEnvVarOr("RABBIT_PASSWORD", "guest")
 	host, err := utils.ReadStringEnvVar("HOST")
-	utils.FailOnError("Failed to read environment variables", err)
+	if err != nil {
+		errored = true
+	}
 	port, err := utils.ReadIntEnvVar("PORT")
-	utils.FailOnError("Failed to read environment variables", err)
+	if err != nil {
+		errored = true
+	}
+	if err := godotenv.Load(); err != nil && errored {
+		log.Fatal("Environment variables are not set")
+	}
 
 	// Create connection
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
