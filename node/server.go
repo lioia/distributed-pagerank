@@ -15,7 +15,6 @@ type NodeServerImpl struct {
 }
 
 // From worker to master node to check if the master node is still alive
-// NOTE: maybe this won't work on new state update method noted in utils/queue.go#L59
 func (s *NodeServerImpl) HealthCheck(_ context.Context, in *wrapperspb.StringValue) (*proto.Health, error) {
 	var health *proto.Health
 	// Check if the contacting node is known to the master
