@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"fmt"
-	"log"
 	"math"
 	"time"
 
@@ -26,24 +25,21 @@ func (n *Node) masterUpdate() {
 			if n.State.Jobs == n.Responses {
 				n.Responses = 0
 				n.State.Phase = int32(Collect)
-				log.Println("Completed Map phase")
+				utils.NodeLog("master", "Completed Map phase")
 				break
 			}
 		case int32(Collect):
 			err := masterCollect(n)
 			utils.FailOnError("Could not execute Collect phase", err)
-			log.Println("Completed Collect phase")
-			log.Printf("Switch to Reduce phase (%d jobs)\n", n.State.Jobs)
 		case int32(Reduce):
 			if n.State.Jobs == n.Responses {
 				n.Responses = 0
 				n.State.Phase = int32(Convergence)
-				log.Println("Completed Reduce phase")
+				utils.NodeLog("master", "Completed Reduce phase")
 				break
 			}
 		case int32(Convergence):
 			masterConvergence(n)
-			log.Println("Completed Convergence phase")
 		}
 		// Update every 500ms
 		time.Sleep(500 * time.Millisecond)
@@ -57,7 +53,6 @@ func masterWait(n *Node) error {
 		// No other node in the network -> calculating PageRank on this node
 		if len(n.State.Others) == 0 {
 			graph.SingleNodePageRank(n.State.Graph, n.State.C, n.State.Threshold)
-			fmt.Println("Computed Page Rank on single node")
 			for id, v := range n.State.Graph {
 				fmt.Printf("%d -> %f\n", id, v.Rank)
 			}
@@ -71,7 +66,7 @@ func masterWait(n *Node) error {
 				Phase:     int32(Wait),
 			}
 			n.Data = utils.NewSafeMap[int32, float64]()
-			log.Println("Completed Wait phase")
+			utils.NodeLog("master", "Completed Wait phase on single node")
 			return nil
 		}
 		go n.masterSendUpdateToWorkers()
@@ -90,9 +85,8 @@ func masterWait(n *Node) error {
 		if err != nil {
 			return err
 		}
-		log.Println("Completed Wait phase")
-		log.Printf("Switch to Map phase (%d jobs)\n", n.State.Jobs)
 		n.State.Phase = int32(Map)
+		utils.NodeLog("master", "Completed Wait phase; switch to Map phase (%d jobs)", n.State.Jobs)
 		return nil
 	}
 	// Ask user configuration
@@ -152,6 +146,7 @@ func masterCollect(n *Node) error {
 	}
 	// Switch to Reduce phase
 	n.State.Phase = int32(Reduce)
+	utils.NodeLog("master", "Completed Collect phase; switch to Reduce phase (%d jobs)", n.State.Jobs)
 	return nil
 }
 
@@ -172,11 +167,11 @@ func masterConvergence(n *Node) {
 	}
 	if convergence > n.State.Threshold {
 		// Does not converge -> iterate
-		log.Printf("Convergence check failed (%f)", convergence)
+		utils.NodeLog("master", "Convergence check failed (%f)", convergence)
 		// Start new computation with updated pagerank values
 		n.State.Phase = int32(Wait)
 	} else {
-		log.Println("Convergence check success")
+		utils.NodeLog("master", "Convergence check success")
 		// Normalize values
 		rankSum := 0.0
 		for _, node := range n.State.Graph {
@@ -209,7 +204,7 @@ func (n *Node) masterSendUpdateToWorkers() {
 		defer worker.Close()
 		_, err = worker.Client.StateUpdate(worker.Ctx, n.State)
 		if err != nil {
-			log.Printf("Worker %s crashed", v)
+			utils.WarnLog("master", "Worker %s crashed", v)
 			crashed <- i
 		}
 	}
@@ -286,7 +281,7 @@ func masterReadQueue(n *Node) {
 		nil,                 // args
 	)
 	utils.FailOnError("Could not register a consumer", err)
-	log.Println("Master registered consumer")
+	utils.NodeLog("master", "Registered consumer for queue %s", n.Queue.Result.Name)
 	for msg := range msgs {
 		var result proto.Result
 		err := protobuf.Unmarshal(msg.Body, &result)

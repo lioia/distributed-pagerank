@@ -1,10 +1,10 @@
 package graph
 
 import (
-	"log"
 	"math"
 
 	"github.com/lioia/distributed-pagerank/proto"
+	"github.com/lioia/distributed-pagerank/utils"
 )
 
 // R_(i + 1) (u) = c sum_(v in B_u) (R_i(v) / N_v) + (1 - c)E(u)
@@ -34,7 +34,7 @@ func SingleNodePageRank(graph map[int32]*proto.GraphNode, c, threshold float64) 
 		}
 
 		if convergenceDiff < threshold {
-			log.Printf("Converged after %d iteration(s)\n", i+1)
+			utils.NodeLog("master", "Convergence check success (%d iterations)", i+1)
 			// Normalize values
 			rankSum := 0.0
 			for _, node := range graph {
@@ -45,7 +45,7 @@ func SingleNodePageRank(graph map[int32]*proto.GraphNode, c, threshold float64) 
 			}
 			return
 		} else {
-			log.Printf("Convergence check failed (%f)", convergenceDiff)
+			utils.NodeLog("master", "Convergence check failed (%f)", convergenceDiff)
 		}
 	}
 }

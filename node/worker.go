@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/lioia/distributed-pagerank/proto"
@@ -15,7 +14,7 @@ func (n *Node) workerUpdate() {
 	go func() {
 		select {
 		case <-n.QueueReader:
-			log.Println("Queue Reading goroutine canceled")
+			utils.NodeLog("worker", "Queue Reading goroutine canceled")
 			return
 		default:
 			for {
@@ -43,7 +42,7 @@ func readQueue(n *Node) {
 		nil,               // args
 	)
 	utils.FailOnError("Could not register a consumer", err)
-	log.Println("Worker registered consumer")
+	utils.NodeLog("worker", "Registered consumer for queue %s", n.Queue.Work.Name)
 	// Queue Message Handler
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -59,13 +58,13 @@ func readQueue(n *Node) {
 		// Create result value
 		// Handle job based on type
 		if job.Type == 0 {
-			log.Println("Computing Map Job")
+			utils.NodeLog("worker", "Computing Map Job (length %d)")
 			result.Values = n.workerMap(job.MapData)
-			log.Println("Completed Map Job")
+			utils.NodeLog("worker", "Completed Map Job")
 		} else if job.Type == 1 {
-			log.Println("Computing Reduce Job")
+			utils.NodeLog("worker", "Computing Reduce Job (length %d)")
 			result.Values = n.workerReduce(job.ReduceData)
-			log.Println("Completed Reduce Job")
+			utils.NodeLog("worker", "Completed Reduce Job")
 		}
 		// Publish result to Result queue
 		data, err := protobuf.Marshal(&result)
@@ -118,6 +117,7 @@ func (n *Node) WorkerHealthCheck() {
 	master, err := utils.NodeCall(n.Master)
 	if err != nil {
 		// Master didn't respond -> assuming crash
+		utils.NodeLog("worker", "Master did not respond to health check. Starting a new election")
 		n.workerCandidacy()
 		return
 	}
@@ -125,6 +125,7 @@ func (n *Node) WorkerHealthCheck() {
 	health, err := master.Client.HealthCheck(master.Ctx, nil)
 	if err != nil {
 		// Master didn't respond -> assuming crash
+		utils.NodeLog("worker", "Master did not respond to health check. Starting a new election")
 		n.workerCandidacy()
 		return
 	}
@@ -146,17 +147,20 @@ func (n *Node) workerCandidacy() {
 	for i, v := range n.State.Others {
 		worker, err := utils.NodeCall(v)
 		if err != nil {
+			utils.WarnLog("worker", "Worker %s crashed", v)
 			crashedWorkers[i] = true
 			continue
 		}
 		defer worker.Close()
 		ack, err := worker.Client.MasterCandidate(worker.Ctx, candidacy)
 		if err != nil {
+			utils.WarnLog("worker", "Worker %s crashed", v)
 			crashedWorkers[i] = true
 			continue
 		}
 		// NACK -> there is an older candidacy
 		if !ack.Ack {
+			utils.NodeLog("worker", "%s has an older candidacy", ack.Candidate)
 			n.Master = ack.Candidate
 			elected = false
 			break
@@ -171,6 +175,7 @@ func (n *Node) workerCandidacy() {
 	}
 	n.State.Others = newWorkers
 	if elected {
+		utils.NodeLog("worker", "Elected as new master")
 		// Stop goroutines
 		n.QueueReader <- true
 		// Switch to master

@@ -2,9 +2,9 @@ package node
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/lioia/distributed-pagerank/proto"
+	"github.com/lioia/distributed-pagerank/utils"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -16,6 +16,7 @@ type NodeServerImpl struct {
 
 // From worker to master node to check if the master node is still alive
 func (s *NodeServerImpl) HealthCheck(_ context.Context, in *wrapperspb.StringValue) (*proto.Health, error) {
+	utils.ServerLog("HealthCheck")
 	var health *proto.Health
 	// Check if the contacting node is known to the master
 	// A worker node could have been removed from the Others array
@@ -42,16 +43,14 @@ func (s *NodeServerImpl) HealthCheck(_ context.Context, in *wrapperspb.StringVal
 
 // From master to worker nodes to keep the master node shared on specific events
 func (s *NodeServerImpl) StateUpdate(_ context.Context, in *proto.State) (*emptypb.Empty, error) {
+	utils.ServerLog("StateUpdate")
 	s.Node.State = in
 	return &emptypb.Empty{}, nil
 }
 
 // From new node to master node
 func (s *NodeServerImpl) NodeJoin(_ context.Context, in *wrapperspb.StringValue) (*proto.Join, error) {
-	// Worker cannot do this operation
-	if s.Node.Role == Worker {
-		return &proto.Join{}, fmt.Errorf("This node cannot fulfill this request. Contact master node at: %s", s.Node.Master)
-	}
+	utils.ServerLog("NodeJoin")
 	s.Node.State.Others = append(s.Node.State.Others, in.Value)
 	constants := proto.Join{
 		WorkQueue:   s.Node.Queue.Work.Name,
@@ -63,6 +62,7 @@ func (s *NodeServerImpl) NodeJoin(_ context.Context, in *wrapperspb.StringValue)
 
 // From worker node to worker nodes to announce a new candidacy
 func (s *NodeServerImpl) MasterCandidate(_ context.Context, in *proto.Candidacy) (*proto.Ack, error) {
+	utils.ServerLog("MasterCandidate")
 	var ack proto.Ack
 	if s.Node.Candidacy > 0 && s.Node.Candidacy < in.Timestamp {
 		// There is already a candidate

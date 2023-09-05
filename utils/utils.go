@@ -47,7 +47,7 @@ func (c Client) Close() {
 
 func FailOnError(msg string, err error) {
 	if err != nil {
-		log.Panicf("%s: %v", msg, err)
+		log.Fatalf("%s: %v", msg, err)
 	}
 }
 
@@ -99,4 +99,16 @@ func ReadFloat64FromStdin(question string) float64 {
 		}
 		return value
 	}
+}
+
+func ServerLog(format string, v ...any) {
+	log.Printf("INFO Server: %s", fmt.Sprintf(format, v...))
+}
+
+func NodeLog(role string, format string, v ...any) {
+	log.Printf("INFO Compute %s: %s", role, fmt.Sprintf(format, v...))
+}
+
+func WarnLog(role string, format string, v ...any) {
+	log.Printf("WARN %s: %s", role, fmt.Sprintf(format, v...))
 }
