@@ -20,23 +20,29 @@ type Client struct {
 	CancelFunc context.CancelFunc
 }
 
-// User has to `defer CancelFunc()` and `defer Conn.Close()`
+// Utility function to create a gRPC client to `url`
+// Has to be closed (`c.Close()`)
 func NodeCall(url string) (Client, error) {
-	var clientInfo Client
 	conn, err := grpc.Dial(
 		url,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		return clientInfo, err
+		return Client{}, err
 	}
 	client := proto.NewNodeClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	clientInfo.Conn = conn
-	clientInfo.Client = client
-	clientInfo.Ctx = ctx
-	clientInfo.CancelFunc = cancel
-	return clientInfo, nil
+	return Client{
+		Conn:       conn,
+		Client:     client,
+		Ctx:        ctx,
+		CancelFunc: cancel,
+	}, nil
+}
+
+func (c Client) Close() {
+	c.CancelFunc()
+	c.Conn.Close()
 }
 
 func FailOnError(msg string, err error) {
