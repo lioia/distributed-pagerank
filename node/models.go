@@ -1,6 +1,9 @@
 package node
 
 import (
+	"fmt"
+
+	"github.com/lioia/distributed-pagerank/graph"
 	"github.com/lioia/distributed-pagerank/proto"
 	"github.com/lioia/distributed-pagerank/utils"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -47,12 +50,6 @@ type Queue struct {
 	Result  *amqp.Queue
 }
 
-type Config struct {
-	C         float64
-	Threshold float64
-	Graph     string
-}
-
 func RoleToString(role Role) string {
 	switch role {
 	case Master:
@@ -61,6 +58,31 @@ func RoleToString(role Role) string {
 		return "Worker"
 	}
 	return "Undefined"
+}
+
+func (n *Node) InitializeMaster() error {
+	config, err := utils.LoadConfiguration()
+	if err != nil {
+		return fmt.Errorf("Failed to read configuration file: %v", err)
+	}
+	graph, err := graph.LoadGraphResource(config.Graph)
+	if err != nil {
+		return fmt.Errorf("Failed to read graph: %v", err)
+	}
+	n.State.C = config.C
+	n.State.Threshold = config.Threshold
+	n.State.Graph = graph
+	return nil
+}
+
+func (n *Node) InitializeWorker(master string, join *proto.Join) (workQueue, resultQueue string) {
+	n.Role = Worker
+	n.Master = master
+	n.State = join.State
+	workQueue = join.WorkQueue
+	resultQueue = join.ResultQueue
+	n.QueueReader = make(chan bool)
+	return
 }
 
 func (n *Node) Update() {

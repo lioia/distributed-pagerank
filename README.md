@@ -22,12 +22,25 @@ Setup `config.json` (not required)
   --go-grpc_opt=paths=source_relative \
   proto/*.proto
   ```
-- Node: `go build`
+- Node
+  ```bash
+  go build -ldflags="-s -w" -o build/node
+  ```
 
-### Docker Compose
+### Running
 
-Run
-```
+Local:
+- RabbitMQ:
+  ```bash
+  docker run -it --rm --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq
+  ```
+- Node:
+  ```bash
+  ./build/node
+  ```
+
+Docker Compose:
+```bash
 docker compose up --build
 ```
 

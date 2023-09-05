@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"time"
 
@@ -49,42 +48,6 @@ func FailOnError(msg string, err error) {
 	if err != nil {
 		log.Fatalf("%s: %v", msg, err)
 	}
-}
-
-func ReadStringEnvVar(name string) (string, error) {
-	value := os.Getenv(name)
-	if value == "" {
-		return "", fmt.Errorf("%s not set", name)
-	}
-	return value, nil
-}
-
-func ReadIntEnvVar(name string) (int, error) {
-	valueStr, err := ReadStringEnvVar(name)
-	if err != nil {
-		return 0, err
-	}
-	value, err := strconv.Atoi(valueStr)
-	if err != nil {
-		return 0, fmt.Errorf("Could not convert %s to a number: %v", name, err)
-	}
-	return value, nil
-}
-
-func ReadStringEnvVarOr(name string, or string) string {
-	value, err := ReadStringEnvVar(name)
-	if err != nil {
-		value = or
-	}
-	return value
-}
-
-func ReadIntEnvVarOr(name string, or int) int {
-	value, err := ReadIntEnvVar(name)
-	if err != nil {
-		value = or
-	}
-	return value
 }
 
 func ReadFloat64FromStdin(question string) float64 {

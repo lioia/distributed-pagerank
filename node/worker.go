@@ -25,8 +25,8 @@ func (n *Node) workerUpdate() {
 	// Worker Health Check
 	healthCheck := utils.ReadIntEnvVarOr("HEALTH_CHECK", 1000)
 	for {
-		n.WorkerHealthCheck()
 		time.Sleep(time.Duration(healthCheck) * time.Millisecond)
+		workerHealthCheck(n)
 	}
 }
 
@@ -59,11 +59,11 @@ func readQueue(n *Node) {
 		// Handle job based on type
 		if job.Type == 0 {
 			utils.NodeLog("worker", "Computing Map Job (length %d)")
-			result.Values = n.workerMap(job.MapData)
+			result.Values = workerMap(n, job.MapData)
 			utils.NodeLog("worker", "Completed Map Job")
 		} else if job.Type == 1 {
 			utils.NodeLog("worker", "Computing Reduce Job (length %d)")
-			result.Values = n.workerReduce(job.ReduceData)
+			result.Values = workerReduce(n, job.ReduceData)
 			utils.NodeLog("worker", "Completed Reduce Job")
 		}
 		// Publish result to Result queue
@@ -95,7 +95,7 @@ func readQueue(n *Node) {
 	}
 }
 
-func (n *Node) workerMap(subGraph map[int32]*proto.Map) map[int32]float64 {
+func workerMap(n *Node, subGraph map[int32]*proto.Map) map[int32]float64 {
 	contributions := make(map[int32]float64)
 	for id, u := range subGraph {
 		for _, v := range u.InLinks {
@@ -105,7 +105,7 @@ func (n *Node) workerMap(subGraph map[int32]*proto.Map) map[int32]float64 {
 	return contributions
 }
 
-func (n *Node) workerReduce(reduce map[int32]*proto.Reduce) map[int32]float64 {
+func workerReduce(n *Node, reduce map[int32]*proto.Reduce) map[int32]float64 {
 	ranks := make(map[int32]float64)
 	for id, v := range reduce {
 		ranks[id] = n.State.C*v.Sum + (1-n.State.C)*v.E
@@ -113,12 +113,12 @@ func (n *Node) workerReduce(reduce map[int32]*proto.Reduce) map[int32]float64 {
 	return ranks
 }
 
-func (n *Node) WorkerHealthCheck() {
+func workerHealthCheck(n *Node) {
 	master, err := utils.NodeCall(n.Master)
 	if err != nil {
 		// Master didn't respond -> assuming crash
 		utils.NodeLog("worker", "Master did not respond to health check. Starting a new election")
-		n.workerCandidacy()
+		workerCandidacy(n)
 		return
 	}
 	defer master.Close()
@@ -126,7 +126,7 @@ func (n *Node) WorkerHealthCheck() {
 	if err != nil {
 		// Master didn't respond -> assuming crash
 		utils.NodeLog("worker", "Master did not respond to health check. Starting a new election")
-		n.workerCandidacy()
+		workerCandidacy(n)
 		return
 	}
 	// No error detected -> master is still valid
@@ -136,7 +136,7 @@ func (n *Node) WorkerHealthCheck() {
 	}
 }
 
-func (n *Node) workerCandidacy() {
+func workerCandidacy(n *Node) {
 	candidacy := &proto.Candidacy{
 		Connection: n.Connection,
 		Timestamp:  time.Now().UnixMilli(),
