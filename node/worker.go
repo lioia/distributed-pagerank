@@ -24,7 +24,7 @@ func (n *Node) workerUpdate() {
 		}
 	}()
 	// Worker Health Check
-	healthCheck := utils.ReadIntEnvVarOr("HEALTH_CHECK", 5000)
+	healthCheck := utils.ReadIntEnvVarOr("HEALTH_CHECK", 1000)
 	for {
 		n.WorkerHealthCheck()
 		time.Sleep(time.Duration(healthCheck) * time.Millisecond)
