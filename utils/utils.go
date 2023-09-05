@@ -50,11 +50,16 @@ func FailOnError(format string, err error, v ...any) {
 	}
 }
 
-func ReadFloat64FromStdin(question string) float64 {
+func ReadStringFromStdin(question string) string {
 	var input string
+	fmt.Print(question)
+	fmt.Scanln(&input)
+	return input
+}
+
+func ReadFloat64FromStdin(question string) float64 {
 	for {
-		fmt.Print(question)
-		fmt.Scanln(&input)
+		input := ReadStringFromStdin(question)
 		value, err := strconv.ParseFloat(input, 64)
 		if err != nil {
 			fmt.Println("Input was not a number. Try again")

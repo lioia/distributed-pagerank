@@ -72,6 +72,7 @@ func (n *Node) InitializeMaster() error {
 	}
 	n.State.C = config.C
 	n.State.Threshold = config.Threshold
+	n.State.Output = config.Output
 	n.State.Graph = graph
 	return nil
 }

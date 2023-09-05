@@ -11,6 +11,7 @@ type Config struct {
 	C         float64
 	Threshold float64
 	Graph     string
+	Output    string
 }
 
 // Load config.json (C, Threshold and graph file)

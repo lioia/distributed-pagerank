@@ -53,9 +53,8 @@ func masterWait(n *Node) error {
 		// No other node in the network -> calculating PageRank on this node
 		if len(n.State.Others) == 0 {
 			graph.SingleNodePageRank(n.State.Graph, n.State.C, n.State.Threshold)
-			for id, v := range n.State.Graph {
-				fmt.Printf("%d -> %f\n", id, v.Rank)
-			}
+			err := graph.Write(n.State.Output, n.State.Graph)
+			utils.FailOnError("Failed to write graph to output %s", err, n.State.Output)
 			// Node Reset
 			// Next time on wait, it will ask for a new graph
 			n.State = &proto.State{
@@ -91,9 +90,10 @@ func masterWait(n *Node) error {
 		return nil
 	}
 	// Ask user configuration
-	fmt.Println("Start new computation:")
-	c := utils.ReadFloat64FromStdin("Enter c-value [in range (0.0..1.0)] ")
-	threshold := utils.ReadFloat64FromStdin("Enter threshold [in range (0.0..1.0)] ")
+	fmt.Println("Start new computation")
+	c := utils.ReadFloat64FromStdin("Enter c-value [in range (0.0..1.0)]: ")
+	threshold := utils.ReadFloat64FromStdin("Enter threshold [in range (0.0..1.0)]: ")
+	output := utils.ReadStringFromStdin("Enter output file: ")
 	var g map[int32]*proto.GraphNode
 	var input string
 	for {
@@ -111,6 +111,7 @@ func masterWait(n *Node) error {
 	n.State.Graph = g
 	n.State.C = c
 	n.State.Threshold = threshold
+	n.State.Output = output
 	// On next Wait phase, it will send the subgraphs to the queue
 	return nil
 }
@@ -178,10 +179,11 @@ func masterConvergence(n *Node) {
 		for _, node := range n.State.Graph {
 			rankSum += node.Rank
 		}
-		for id, v := range n.State.Graph {
+		for id := range n.State.Graph {
 			n.State.Graph[id].Rank /= rankSum
-			fmt.Printf("%d -> %f\n", id, v.Rank)
 		}
+		err := graph.Write(n.State.Output, n.State.Graph)
+		utils.FailOnError("Failed to write graph to output %s", err, n.State.Output)
 		// Node Reset
 		n.State = &proto.State{
 			Graph:     nil,

@@ -13,6 +13,20 @@ import (
 	"github.com/lioia/distributed-pagerank/proto"
 )
 
+func Write(output string, graph map[int32]*proto.GraphNode) error {
+	file, err := os.Create(output)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	var contents string
+	for id, v := range graph {
+		contents = fmt.Sprintf("%sNode %d with rank %f\n", contents, id, v.Rank)
+	}
+	_, err = file.WriteString(contents)
+	return err
+}
+
 func LoadGraphResource(resource string) (g map[int32]*proto.GraphNode, err error) {
 	var bytes []byte
 	// Check if it's a network resource or a local one
