@@ -32,24 +32,3 @@ func FailOnNack(d amqp.Delivery, err error) {
 		log.Fatalf("Could not NACK to message queue: %v", err)
 	}
 }
-
-func EmptyQueue(ch *amqp.Channel, name string) {
-	msgs, err := ch.Consume(
-		name,  // queue
-		"",    // consumer
-		false, // auto-ack
-		false, // exclusive
-		false, // no-local
-		false, // no-wait
-		nil,   // args
-	)
-	FailOnError("Could not register a consumer", err)
-
-	for msg := range msgs {
-		// Acknowledge the message to remove it from the queue
-		err := msg.Ack(false)
-		if err != nil {
-			log.Printf("Failed to acknowledge message: %v", err)
-		}
-	}
-}

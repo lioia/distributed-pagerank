@@ -22,7 +22,7 @@ func (n *Node) masterUpdate() {
 			err := masterWait(n)
 			utils.FailOnError("Could not execute Wait phase", err)
 		case int32(Map):
-			if n.State.Jobs == n.Responses {
+			if n.Jobs == n.Responses {
 				n.Responses = 0
 				n.State.Phase = int32(Collect)
 				utils.NodeLog("master", "Completed Map phase")
@@ -32,7 +32,7 @@ func (n *Node) masterUpdate() {
 			err := masterCollect(n)
 			utils.FailOnError("Could not execute Collect phase", err)
 		case int32(Reduce):
-			if n.State.Jobs == n.Responses {
+			if n.Jobs == n.Responses {
 				n.Responses = 0
 				n.State.Phase = int32(Convergence)
 				utils.NodeLog("master", "Completed Reduce phase")
@@ -62,14 +62,15 @@ func masterWait(n *Node) error {
 				Graph:     nil,
 				C:         0.0,
 				Threshold: 0.0,
-				Jobs:      0,
 				Phase:     int32(Wait),
 			}
+			n.Jobs = 0
+			n.Responses = 0
 			n.Data = utils.NewSafeMap[int32, float64]()
 			utils.NodeLog("master", "Completed Wait phase on single node")
 			return nil
 		}
-		go n.masterSendUpdateToWorkers()
+		go masterSendUpdateToWorkers(n)
 		err := masterWriteQueue(n, func(m map[int32]*proto.GraphNode) *proto.Job {
 			mapData := make(map[int32]*proto.Map)
 			dummyReduce := make(map[int32]*proto.Reduce)
@@ -86,7 +87,7 @@ func masterWait(n *Node) error {
 			return err
 		}
 		n.State.Phase = int32(Map)
-		utils.NodeLog("master", "Completed Wait phase; switch to Map phase (%d jobs)", n.State.Jobs)
+		utils.NodeLog("master", "Completed Wait phase; switch to Map phase (%d jobs)", n.Jobs)
 		return nil
 	}
 	// Ask user configuration
@@ -123,7 +124,7 @@ func masterCollect(n *Node) error {
 		n.State.Phase = int32(Convergence)
 		return nil
 	}
-	go n.masterSendUpdateToWorkers()
+	go masterSendUpdateToWorkers(n)
 	data := n.Data.Clone()
 	n.Data.Reset()
 	err := masterWriteQueue(n, func(m map[int32]*proto.GraphNode) *proto.Job {
@@ -146,7 +147,7 @@ func masterCollect(n *Node) error {
 	}
 	// Switch to Reduce phase
 	n.State.Phase = int32(Reduce)
-	utils.NodeLog("master", "Completed Collect phase; switch to Reduce phase (%d jobs)", n.State.Jobs)
+	utils.NodeLog("master", "Completed Collect phase; switch to Reduce phase (%d jobs)", n.Jobs)
 	return nil
 }
 
@@ -186,15 +187,16 @@ func masterConvergence(n *Node) {
 			Graph:     nil,
 			C:         0.0,
 			Threshold: 0.0,
-			Jobs:      0,
 			Phase:     int32(Wait),
 		}
+		n.Jobs = 0
+		n.Responses = 0
 	}
 	n.Data = utils.NewSafeMap[int32, float64]()
 }
 
 // Master send state to all workers
-func (n *Node) masterSendUpdateToWorkers() {
+func masterSendUpdateToWorkers(n *Node) {
 	crashed := make(chan int)
 	for i, v := range n.State.Others {
 		worker, err := utils.NodeCall(v)
@@ -225,6 +227,43 @@ func (n *Node) masterSendUpdateToWorkers() {
 		}
 	}
 	n.State.Others = newWorkers
+}
+
+// Master send other state update to workers
+func masterSendOtherStateUpdate(n *Node) {
+	crashed := make(chan int)
+	for i, v := range n.State.Others {
+		worker, err := utils.NodeCall(v)
+		if err != nil {
+			crashed <- i
+		}
+		defer worker.Close()
+		others := proto.OtherState{Connections: n.State.Others}
+		_, err = worker.Client.OtherStateUpdate(worker.Ctx, &others)
+		if err != nil {
+			crashed <- i
+		}
+	}
+
+	// Close to no cause any leaks
+	close(crashed)
+
+	// Collect crashed
+	crashedWorkers := make(map[int]bool)
+	for i := range crashed {
+		crashedWorkers[i] = true
+	}
+	// Remove crashed
+	var newWorkers []string
+	for i, v := range n.State.Others {
+		if !crashedWorkers[i] {
+			newWorkers = append(newWorkers, v)
+		}
+	}
+	n.State.Others = newWorkers
+
+	// Do not send state update to working workers
+	// It will happen on next state update
 }
 
 func masterWriteQueue(n *Node, fn func(map[int32]*proto.GraphNode) *proto.Job) error {
@@ -265,7 +304,7 @@ func masterWriteQueue(n *Node, fn func(map[int32]*proto.GraphNode) *proto.Job) e
 			return err
 		}
 	}
-	n.State.Jobs = int32(numberOfJobs)
+	n.Jobs = numberOfJobs
 	return nil
 }
 
@@ -280,7 +319,7 @@ func masterReadQueue(n *Node) {
 		false,               // no-wait
 		nil,                 // args
 	)
-	utils.FailOnError("Could not register a consumer", err)
+	utils.FailOnError("Could not register a consumer for %s queue", err, n.Queue.Result.Name)
 	utils.NodeLog("master", "Registered consumer for queue %s", n.Queue.Result.Name)
 	for msg := range msgs {
 		var result proto.Result

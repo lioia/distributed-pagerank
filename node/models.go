@@ -36,7 +36,8 @@ type Node struct {
 	Master      string       // Master node (set if this node is a worker)
 	Candidacy   int64        // Timestamp of new candidacy (0: no candidate)
 	QueueReader chan bool    // Cancel channel for worker goroutine
-	Responses   int32        // Master state: number of read result messages
+	Jobs        int          // Master state: number of jobs in the work queue
+	Responses   int          // Master state: number of read result messages
 	// Master state: Data collected from result queue
 	// Standard map is not thread safe
 	// NOTE: look into sync.Map
@@ -87,8 +88,10 @@ func (n *Node) InitializeWorker(master string, join *proto.Join) (workQueue, res
 
 func (n *Node) Update() {
 	if n.Role == Worker {
+		utils.NodeLog("worker", "update")
 		n.workerUpdate()
 	} else if n.Role == Master {
+		utils.NodeLog("master", "update")
 		n.masterUpdate()
 	}
 }

@@ -21,6 +21,7 @@ services:
       retries: 5
   worker_1:
     build: .
+    stdin_open: true # required to pass inputs 
     depends_on:
       master:
         condition: service_healthy # wait for master gRPC server to start
@@ -33,6 +34,7 @@ services:
       - .env
   worker_2:
     build: .
+    stdin_open: true # required to pass inputs 
     depends_on:
       master:
         condition: service_healthy # wait for master gRPC server to start
@@ -45,6 +47,7 @@ services:
       - .env
   worker_3:
     build: .
+    stdin_open: true # required to pass inputs 
     depends_on:
       master:
         condition: service_healthy # wait for master gRPC server to start

@@ -15,10 +15,13 @@ service Node {
   rpc HealthCheck(google.protobuf.StringValue) returns (Health) {}
   // Master to Worker: send master state to workers (consistency)
   rpc StateUpdate(State) returns (google.protobuf.Empty) {}
+  // Master to Worker: send connected nodes to worker
+  rpc OtherStateUpdate(OtherState) returns (google.protobuf.Empty) {}
   // Worker to Master: new node asks to join the network
   rpc NodeJoin(google.protobuf.StringValue) returns (Join) {}
-  // Worker to Worker: announces its candidacy as new master (after its failure)
-  rpc MasterCandidate(Candidacy) returns (Ack) {}
+  // Worker to Worker: announces its candidacy as new master
+  // Returns true if the worker node has accepted it
+  rpc MasterCandidate(Candidacy) returns (google.protobuf.BoolValue) {}
 }
 
 message Health {
@@ -33,10 +36,13 @@ message Health {
 message State {
   int32 phase = 1;                 // Current Node Phase
   map<int32, GraphNode> graph = 2; // Graph
-  int32 jobs = 3;                  // Number of jobs added to the queue
-  double c = 4;                    // PageRank Parameter
-  double threshold = 5;            // PageRank Parameter
-  repeated string others = 6;      // Other nodes in the network
+  double c = 3;                    // PageRank Parameter
+  double threshold = 4;            // PageRank Parameter
+  repeated string others = 5;      // Other nodes
+}
+
+message OtherState {
+  repeated string connections = 1; // Other nodes in the network
 }
 
 message GraphNode {
@@ -54,9 +60,4 @@ message Join {
 message Candidacy {
   string connection = 1; // Candidate connection information
   int64 timestamp = 2;   // Used as an ID
-}
-
-message Ack {
-  bool ack = 1;         // Candidate recognized as new master
-  string candidate = 2; // ACK = false -> candidate: new master info
 }

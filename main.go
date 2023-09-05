@@ -41,6 +41,7 @@ func main() {
 			Conn:    queueConn,
 			Channel: ch,
 		},
+		Connection: fmt.Sprintf("%s:%d", env.Host, env.Port),
 	}
 
 	// Contact master node to join the network
@@ -59,6 +60,7 @@ func main() {
 			utils.NodeLog("master", "%v", err)
 		}
 	} else {
+		utils.NodeLog("worker", "Found master at %s", env.Master)
 		workQueueName, resultQueueName := n.InitializeWorker(env.Master, join)
 		env.WorkQueue = workQueueName
 		env.ResultQueue = resultQueueName
