@@ -178,7 +178,7 @@ func workerCandidacy(n *Node) {
 	}
 	n.State.Others = newWorkers
 	if elected {
-		utils.NodeLog("worker", "Elected as new master (state: %v)", n.State)
+		utils.NodeLog("worker", "Elected as new master")
 		// Stop goroutines
 		n.QueueReader <- true
 		// Empty queues

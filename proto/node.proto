@@ -34,7 +34,6 @@ message Health {
 }
 
 message State {
-  int32 phase = 1;                 // Current Node Phase
   map<int32, GraphNode> graph = 2; // Graph
   double c = 3;                    // PageRank Parameter
   double threshold = 4;            // PageRank Parameter

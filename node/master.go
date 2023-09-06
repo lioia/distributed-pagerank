@@ -20,28 +20,28 @@ func (n *Node) masterUpdate() {
 	// wait for queue registration
 	<-status
 	for {
-		switch n.State.Phase {
-		case int32(Wait):
+		switch n.Phase {
+		case Wait:
 			err := masterWait(n)
 			utils.FailOnError("Could not execute Wait phase", err)
-		case int32(Map):
+		case Map:
 			if n.Jobs == n.Responses {
 				n.Responses = 0
-				n.State.Phase = int32(Collect)
+				n.Phase = Collect
 				utils.NodeLog("master", "Completed Map phase")
 				break
 			}
-		case int32(Collect):
+		case Collect:
 			err := masterCollect(n)
 			utils.FailOnError("Could not execute Collect phase", err)
-		case int32(Reduce):
+		case Reduce:
 			if n.Jobs == n.Responses {
 				n.Responses = 0
-				n.State.Phase = int32(Convergence)
+				n.Phase = Convergence
 				utils.NodeLog("master", "Completed Reduce phase")
 				break
 			}
-		case int32(Convergence):
+		case Convergence:
 			masterConvergence(n)
 		}
 		// Update every 500ms
@@ -65,8 +65,8 @@ func masterWait(n *Node) error {
 				Graph:     nil,
 				C:         0.0,
 				Threshold: 0.0,
-				Phase:     int32(Wait),
 			}
+			n.Phase = Wait
 			n.Jobs = 0
 			n.Responses = 0
 			n.Data = utils.NewSafeMap[int32, float64]()
@@ -90,7 +90,7 @@ func masterWait(n *Node) error {
 		if err != nil {
 			return err
 		}
-		n.State.Phase = int32(Map)
+		n.Phase = Map
 		utils.NodeLog("master", "Completed Wait phase; switch to Map phase (%d jobs)", n.Jobs)
 		return nil
 	}
@@ -124,10 +124,9 @@ func masterWait(n *Node) error {
 func masterCollect(n *Node) error {
 	if len(n.State.Others) == 0 {
 		// Go to wait and call single node pagerank
-		n.State.Phase = int32(Wait)
+		n.Phase = Wait
 		return nil
 	}
-	go masterSendUpdateToWorkers(n)
 	data := n.Data.Clone()
 	n.Data.Reset()
 	err := masterWriteQueue(n, func(m map[int32]*proto.GraphNode) *proto.Job {
@@ -149,7 +148,7 @@ func masterCollect(n *Node) error {
 		return err
 	}
 	// Switch to Reduce phase
-	n.State.Phase = int32(Reduce)
+	n.Phase = Reduce
 	utils.NodeLog("master", "Completed Collect phase; switch to Reduce phase (%d jobs)", n.Jobs)
 	return nil
 }
@@ -173,7 +172,7 @@ func masterConvergence(n *Node) {
 		// Does not converge -> iterate
 		utils.NodeLog("master", "Convergence check failed (%f)", convergence)
 		// Start new computation with updated pagerank values
-		n.State.Phase = int32(Wait)
+		n.Phase = Wait
 	} else {
 		utils.NodeLog("master", "Convergence check success (%f)", convergence)
 		// Normalize values
@@ -192,8 +191,8 @@ func masterConvergence(n *Node) {
 			Graph:     nil,
 			C:         0.0,
 			Threshold: 0.0,
-			Phase:     int32(Wait),
 		}
+		n.Phase = Wait
 		n.Jobs = 0
 		n.Responses = 0
 	}

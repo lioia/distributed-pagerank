@@ -42,7 +42,7 @@ func main() {
 
 	// Base node values
 	n := node.Node{
-		State: &proto.State{Phase: int32(node.Wait)},
+		State: &proto.State{},
 		Data:  utils.NewSafeMap[int32, float64](),
 		Role:  node.Master,
 		Queue: node.Queue{
@@ -50,6 +50,7 @@ func main() {
 			Channel: ch,
 		},
 		Connection: fmt.Sprintf("%s:%d", realHost, realPort),
+		Phase:      node.Wait,
 	}
 
 	// Contact master node to join the network

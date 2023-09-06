@@ -36,6 +36,7 @@ type Node struct {
 	Master      string       // Master node (set if this node is a worker)
 	Candidacy   int64        // Timestamp of new candidacy (0: no candidate)
 	QueueReader chan bool    // Cancel channel for worker goroutine
+	Phase       Phase        // Master state: current computation (master as a FSM)
 	Jobs        int          // Master state: number of jobs in the work queue
 	Responses   int          // Master state: number of read result messages
 	// Master state: Data collected from result queue
