@@ -55,6 +55,7 @@ func masterWait(n *Node) error {
 			graph.SingleNodePageRank(n.State.Graph, n.State.C, n.State.Threshold)
 			err := graph.Write(n.State.Output, n.State.Graph)
 			utils.FailOnError("Failed to write graph to output %s", err, n.State.Output)
+			fmt.Printf("Computation finished; output written to %s\n", n.State.Output)
 			// Node Reset
 			// Next time on wait, it will ask for a new graph
 			n.State = &proto.State{
@@ -184,6 +185,7 @@ func masterConvergence(n *Node) {
 		}
 		err := graph.Write(n.State.Output, n.State.Graph)
 		utils.FailOnError("Failed to write graph to output %s", err, n.State.Output)
+		fmt.Printf("Computation finished; output written to %s\n", n.State.Output)
 		// Node Reset
 		n.State = &proto.State{
 			Graph:     nil,

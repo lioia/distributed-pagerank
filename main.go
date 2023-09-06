@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
 
 	"github.com/lioia/distributed-pagerank/node"
@@ -17,11 +16,20 @@ import (
 func main() {
 	// Read environment variables
 	env := utils.ReadEnvVars()
+	utils.InitLog(env.NodeLog, env.ServerLog)
 
 	// Create connection
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", env.Port))
 	utils.FailOnError("Failed to listen for node server", err)
 	// lis.Close in goroutine
+	realPort := env.Port
+	realHost := env.Host
+	if env.Port == 0 {
+		realPort = lis.Addr().(*net.TCPAddr).Port
+	}
+	if env.Host == "" {
+		realHost = lis.Addr().(*net.TCPAddr).IP.String()
+	}
 
 	// Connect to RabbitMQ
 	queue := fmt.Sprintf("amqp://%s:%s@%s:5672/", env.RabbitUser, env.RabbitPass, env.RabbitHost)
@@ -41,7 +49,7 @@ func main() {
 			Conn:    queueConn,
 			Channel: ch,
 		},
-		Connection: fmt.Sprintf("%s:%d", env.Host, env.Port),
+		Connection: fmt.Sprintf("%s:%d", realHost, realPort),
 	}
 
 	// Contact master node to join the network
@@ -50,7 +58,7 @@ func main() {
 	defer client.Close()
 	join, err := client.Client.NodeJoin(
 		client.Ctx,
-		&wrapperspb.StringValue{Value: fmt.Sprintf("%s:%d", env.Host, env.Port)},
+		&wrapperspb.StringValue{Value: fmt.Sprintf("%s:%d", realHost, realPort)},
 	)
 	if err != nil {
 		// There is no node at the address -> creating a new network
@@ -80,7 +88,8 @@ func main() {
 		defer lis.Close()
 		server := grpc.NewServer()
 		proto.RegisterNodeServer(server, &node.NodeServerImpl{Node: &n})
-		log.Printf("Starting %s node at %s:%d\n", node.RoleToString(n.Role), env.Host, env.Port)
+		fmt.Printf("Starting %s node at %s:%d\n",
+			node.RoleToString(n.Role), realHost, realPort)
 		status <- true
 		err = server.Serve(lis)
 		utils.FailOnError("Failed to serve", err)
