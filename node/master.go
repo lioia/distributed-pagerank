@@ -15,7 +15,10 @@ import (
 )
 
 func (n *Node) masterUpdate() {
-	go masterReadQueue(n)
+	status := make(chan bool)
+	go masterReadQueue(n, status)
+	// wait for queue registration
+	<-status
 	for {
 		switch n.State.Phase {
 		case int32(Wait):
@@ -70,6 +73,7 @@ func masterWait(n *Node) error {
 			utils.NodeLog("master", "Completed Wait phase on single node")
 			return nil
 		}
+		fmt.Println("Starting computation")
 		go masterSendUpdateToWorkers(n)
 		err := masterWriteQueue(n, func(m map[int32]*proto.GraphNode) *proto.Job {
 			mapData := make(map[int32]*proto.Map)
@@ -119,11 +123,8 @@ func masterWait(n *Node) error {
 
 func masterCollect(n *Node) error {
 	if len(n.State.Others) == 0 {
-		ranks := make(map[int32]float64)
-		for id, node := range n.State.Graph {
-			ranks[id] = n.State.C*n.Data.Get(id) + (1-n.State.C)*node.E
-		}
-		n.State.Phase = int32(Convergence)
+		// Go to wait and call single node pagerank
+		n.State.Phase = int32(Wait)
 		return nil
 	}
 	go masterSendUpdateToWorkers(n)
@@ -174,7 +175,7 @@ func masterConvergence(n *Node) {
 		// Start new computation with updated pagerank values
 		n.State.Phase = int32(Wait)
 	} else {
-		utils.NodeLog("master", "Convergence check success")
+		utils.NodeLog("master", "Convergence check success (%f)", convergence)
 		// Normalize values
 		rankSum := 0.0
 		for _, node := range n.State.Graph {
@@ -205,14 +206,14 @@ func masterSendUpdateToWorkers(n *Node) {
 	for i, v := range n.State.Others {
 		worker, err := utils.NodeCall(v)
 		if err != nil {
-			utils.NodeLog("master", "[WARN] Worker %s crashed", v)
+			utils.ServerLog("[WARN] Worker %s crashed", v)
 			crashedWorkers[i] = true
 			continue
 		}
 		defer worker.Close()
 		_, err = worker.Client.StateUpdate(worker.Ctx, n.State)
 		if err != nil {
-			utils.NodeLog("master", "[WARN] Worker %s crashed", v)
+			utils.ServerLog("[WARN] Worker %s crashed", v)
 			crashedWorkers[i] = true
 		}
 	}
@@ -298,7 +299,7 @@ func masterWriteQueue(n *Node, fn func(map[int32]*proto.GraphNode) *proto.Job) e
 	return nil
 }
 
-func masterReadQueue(n *Node) {
+func masterReadQueue(n *Node, status chan bool) {
 	// Register consumer
 	msgs, err := n.Queue.Channel.Consume(
 		n.Queue.Result.Name, // queue
@@ -311,6 +312,7 @@ func masterReadQueue(n *Node) {
 	)
 	utils.FailOnError("Could not register a consumer for %s queue", err, n.Queue.Result.Name)
 	utils.NodeLog("master", "Registered consumer for queue %s", n.Queue.Result.Name)
+	status <- true
 	for msg := range msgs {
 		var result proto.Result
 		err := protobuf.Unmarshal(msg.Body, &result)

@@ -24,7 +24,7 @@ func readQueue(n *Node) {
 	// Register consumer
 	msgs, err := n.Queue.Channel.Consume(
 		n.Queue.Work.Name, // queue
-		"",                // consumer
+		n.Connection,      // consumer (connection used as an identifier)
 		false,             // auto-ack
 		false,             // exclusive
 		false,             // no-local
@@ -178,7 +178,7 @@ func workerCandidacy(n *Node) {
 	}
 	n.State.Others = newWorkers
 	if elected {
-		utils.NodeLog("worker", "Elected as new master")
+		utils.NodeLog("worker", "Elected as new master (state: %v)", n.State)
 		// Stop goroutines
 		n.QueueReader <- true
 		// Empty queues
@@ -186,6 +186,8 @@ func workerCandidacy(n *Node) {
 		utils.FailOnError("Failed to empty %s queue", err, n.Queue.Work.Name)
 		_, err = n.Queue.Channel.QueuePurge(n.Queue.Result.Name, true)
 		utils.FailOnError("Failed to empty %s queue", err, n.Queue.Result.Name)
+		err = n.Queue.Channel.Cancel(n.Connection, true)
+		utils.FailOnError("Failed to cancel queue reading channel", err)
 		// Switch to master
 		n.Role = Master
 		// Start master update

@@ -16,7 +16,7 @@ type NodeServerImpl struct {
 
 // From worker to master node to check if the master node is still alive
 func (s *NodeServerImpl) HealthCheck(_ context.Context, in *wrapperspb.StringValue) (*proto.Health, error) {
-	utils.ServerLog("HealthCheck")
+	// utils.ServerLog("HealthCheck")
 	health := &proto.Health{}
 	// Check if the contacting node is known to the master
 	// A worker node could have been removed from the Others array
