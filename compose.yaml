@@ -15,7 +15,7 @@ services:
     ports:
       - "1234:${PORT}"
     healthcheck:
-      test: [ "CMD", "ping", "-c", "3", "localhost:${PORT}" ]
+      test: [ "CMD", "nc", "-z", "-w3", "localhost", "${PORT}" ]
       interval: 10s
       timeout: 2s
       retries: 5
@@ -65,8 +65,8 @@ services:
       - "15672:15672"
     # TODO: probably password and user does not work
     environment:
-      - "RABBITMQ_DEFAULT_USER=${RABBIT_USER}"
-      - "RABBITMQ_DEFAULT_PASS=${RABBIT_PASSWORD}"
+      - "RABBITMQ_DEFAULT_USER=${RABBIT_USER:-guest}"
+      - "RABBITMQ_DEFAULT_PASS=${RABBIT_PASSWORD:-guest}"
     healthcheck:
       test: [ "CMD", "rabbitmqctl", "status" ]
       interval: 10s
