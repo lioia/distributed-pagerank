@@ -24,7 +24,3 @@ func NodeLog(role string, format string, v ...any) {
 		log.Printf("INFO Compute %s: %s", role, fmt.Sprintf(format, v...))
 	}
 }
-
-func WarnLog(role string, format string, v ...any) {
-	log.Printf("WARN %s: %s", role, fmt.Sprintf(format, v...))
-}

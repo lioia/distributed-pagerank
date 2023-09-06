@@ -13,18 +13,6 @@ import (
 
 func (n *Node) workerUpdate() {
 	go readQueue(n)
-	// go func() {
-	// 	for {
-	// 		select {
-	// 		case <-n.QueueReader:
-	// 			utils.NodeLog("worker", "Queue Reading goroutine canceled")
-	// 			return
-	// 		default:
-	// 			readQueue(n)
-	// 		}
-	// 	}
-	// }()
-	// Worker Health Check
 	healthCheck := utils.ReadIntEnvVarOr("HEALTH_CHECK", 1000)
 	for {
 		time.Sleep(time.Duration(healthCheck) * time.Millisecond)
@@ -163,14 +151,14 @@ func workerCandidacy(n *Node) {
 		utils.NodeLog("worker", "Contacting worker node: %s", v)
 		worker, err := utils.NodeCall(v)
 		if err != nil {
-			utils.WarnLog("worker", "Worker %s crashed", v)
+			utils.NodeLog("worker", "[WARN] Worker %s crashed", v)
 			toRemove[i] = true
 			continue
 		}
 		defer worker.Close()
 		ack, err := worker.Client.MasterCandidate(worker.Ctx, candidacy)
 		if err != nil {
-			utils.WarnLog("worker", "Worker %s crashed", v)
+			utils.NodeLog("worker", "[WARN] Worker %s crashed", v)
 			toRemove[i] = true
 			continue
 		}

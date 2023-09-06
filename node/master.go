@@ -201,27 +201,20 @@ func masterConvergence(n *Node) {
 
 // Master send state to all workers
 func masterSendUpdateToWorkers(n *Node) {
-	crashed := make(chan int)
+	crashedWorkers := make(map[int]bool)
 	for i, v := range n.State.Others {
 		worker, err := utils.NodeCall(v)
 		if err != nil {
-			crashed <- i
+			utils.NodeLog("master", "[WARN] Worker %s crashed", v)
+			crashedWorkers[i] = true
+			continue
 		}
 		defer worker.Close()
 		_, err = worker.Client.StateUpdate(worker.Ctx, n.State)
 		if err != nil {
-			utils.WarnLog("master", "Worker %s crashed", v)
-			crashed <- i
+			utils.NodeLog("master", "[WARN] Worker %s crashed", v)
+			crashedWorkers[i] = true
 		}
-	}
-
-	// Close to no cause any leaks
-	close(crashed)
-
-	// Collect crashed
-	crashedWorkers := make(map[int]bool)
-	for i := range crashed {
-		crashedWorkers[i] = true
 	}
 	// Remove crashed
 	var newWorkers []string
@@ -235,28 +228,21 @@ func masterSendUpdateToWorkers(n *Node) {
 
 // Master send other state update to workers
 func masterSendOtherStateUpdate(n *Node) {
-	crashed := make(chan int)
+	crashedWorkers := make(map[int]bool)
 	for i, v := range n.State.Others {
 		worker, err := utils.NodeCall(v)
 		if err != nil {
-			crashed <- i
+			crashedWorkers[i] = true
+			continue
 		}
 		defer worker.Close()
 		others := proto.OtherState{Connections: n.State.Others}
 		_, err = worker.Client.OtherStateUpdate(worker.Ctx, &others)
 		if err != nil {
-			crashed <- i
+			crashedWorkers[i] = true
 		}
 	}
 
-	// Close to no cause any leaks
-	close(crashed)
-
-	// Collect crashed
-	crashedWorkers := make(map[int]bool)
-	for i := range crashed {
-		crashedWorkers[i] = true
-	}
 	// Remove crashed
 	var newWorkers []string
 	for i, v := range n.State.Others {
