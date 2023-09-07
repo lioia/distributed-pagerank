@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"sync"
 
 	"github.com/lioia/distributed-pagerank/node"
 	"github.com/lioia/distributed-pagerank/proto"
@@ -43,7 +44,7 @@ func main() {
 	// Base node values
 	n := node.Node{
 		State: &proto.State{},
-		Data:  utils.NewSafeMap[int32, float64](),
+		Data:  sync.Map{},
 		Role:  node.Master,
 		Queue: node.Queue{
 			Conn:    queueConn,

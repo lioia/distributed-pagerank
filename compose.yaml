@@ -59,11 +59,10 @@ services:
     env_file:
       - .env
   rabbitmq:
-    image: rabbitmq:alpine
+    image: rabbitmq:management-alpine
     ports:
       - "5672:5672"
       - "15672:15672"
-    # TODO: probably password and user does not work
     environment:
       - "RABBITMQ_DEFAULT_USER=${RABBIT_USER:-guest}"
       - "RABBITMQ_DEFAULT_PASS=${RABBIT_PASSWORD:-guest}"

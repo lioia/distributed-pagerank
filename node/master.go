@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/lioia/distributed-pagerank/graph"
@@ -69,7 +70,7 @@ func masterWait(n *Node) error {
 			n.Phase = Wait
 			n.Jobs = 0
 			n.Responses = 0
-			n.Data = utils.NewSafeMap[int32, float64]()
+			n.Data = sync.Map{}
 			utils.NodeLog("master", "Completed Wait phase on single node")
 			return nil
 		}
@@ -112,7 +113,7 @@ func masterWait(n *Node) error {
 		}
 		break
 	}
-	n.Data = utils.NewSafeMap[int32, float64]()
+	n.Data = sync.Map{}
 	n.State.Graph = g
 	n.State.C = c
 	n.State.Threshold = threshold
@@ -127,8 +128,12 @@ func masterCollect(n *Node) error {
 		n.Phase = Wait
 		return nil
 	}
-	data := n.Data.Clone()
-	n.Data.Reset()
+	data := make(map[int32]float64)
+	n.Data.Range(func(key, value any) bool {
+		data[key.(int32)] = value.(float64)
+		return true
+	})
+	n.Data = sync.Map{}
 	err := masterWriteQueue(n, func(m map[int32]*proto.GraphNode) *proto.Job {
 		dummyMap := make(map[int32]*proto.Map)
 		reduce := make(map[int32]*proto.Reduce)
@@ -155,14 +160,15 @@ func masterCollect(n *Node) error {
 
 func masterConvergence(n *Node) {
 	var convergence float64
-	for _, id := range n.Data.Keys() {
-		newRank := n.Data.Get(id)
+	n.Data.Range(func(key, value any) bool {
+		id := key.(int32)
+		newRank := value.(float64)
 		oldRank := n.State.Graph[id].Rank
 		convergence += math.Abs(newRank - oldRank)
 		// After calculating the convergence value, it can be safely updated
 		n.State.Graph[id].Rank = newRank
-	}
-	// Update InLinks rank values
+		return true
+	})
 	for _, u := range n.State.Graph {
 		for j, v := range u.InLinks {
 			v.Rank = n.State.Graph[j].Rank
@@ -196,7 +202,7 @@ func masterConvergence(n *Node) {
 		n.Jobs = 0
 		n.Responses = 0
 	}
-	n.Data = utils.NewSafeMap[int32, float64]()
+	n.Data = sync.Map{}
 }
 
 // Master send state to all workers
@@ -315,17 +321,20 @@ func masterReadQueue(n *Node, status chan bool) {
 	for msg := range msgs {
 		var result proto.Result
 		err := protobuf.Unmarshal(msg.Body, &result)
-		// FIXME: better error handling
 		if err != nil {
 			utils.FailOnNack(msg, err)
 			continue
 		}
 		for id, v := range result.Values {
-			n.Data.Increment(id, v)
+			oldValue, ok := n.Data.Load(id)
+			newValue := v
+			if ok {
+				newValue += oldValue.(float64)
+			}
+			n.Data.Store(id, newValue)
 		}
 
 		// Ack
-		// FIXME: better error handling
 		if err := msg.Ack(false); err != nil {
 			utils.FailOnNack(msg, err)
 			continue

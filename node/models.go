@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/lioia/distributed-pagerank/graph"
 	"github.com/lioia/distributed-pagerank/proto"
@@ -39,10 +40,7 @@ type Node struct {
 	Phase       Phase        // Master state: current computation (master as a FSM)
 	Jobs        int          // Master state: number of jobs in the work queue
 	Responses   int          // Master state: number of read result messages
-	// Master state: Data collected from result queue
-	// Standard map is not thread safe
-	// NOTE: look into sync.Map
-	Data *utils.SafeMap[int32, float64]
+	Data        sync.Map     // Master state: data collected from result queue (std map is no thread safe)
 }
 
 type Queue struct {
