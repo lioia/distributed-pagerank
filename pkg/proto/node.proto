@@ -3,9 +3,9 @@ syntax = "proto3";
 import "google/protobuf/empty.proto";
 import "google/protobuf/wrappers.proto";
 
-import "proto/common.proto";
+import "pkg/proto/common.proto";
 
-option go_package = "github.com/lioia/distributed-pagerank/proto";
+option go_package = "github.com/lioia/distributed-pagerank/pkg/proto";
 
 package proto;
 

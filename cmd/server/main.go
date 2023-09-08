@@ -5,9 +5,9 @@ import (
 	"net"
 	"sync"
 
-	"github.com/lioia/distributed-pagerank/node"
-	"github.com/lioia/distributed-pagerank/proto"
-	"github.com/lioia/distributed-pagerank/utils"
+	"github.com/lioia/distributed-pagerank/pkg/node"
+	"github.com/lioia/distributed-pagerank/pkg/proto"
+	"github.com/lioia/distributed-pagerank/pkg/utils"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"

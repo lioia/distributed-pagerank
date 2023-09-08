@@ -3,8 +3,8 @@ package graph
 import (
 	"math"
 
-	"github.com/lioia/distributed-pagerank/proto"
-	"github.com/lioia/distributed-pagerank/utils"
+	"github.com/lioia/distributed-pagerank/pkg/proto"
+	"github.com/lioia/distributed-pagerank/pkg/utils"
 )
 
 // R_(i + 1) (u) = c sum_(v in B_u) (R_i(v) / N_v) + (1 - c)E(u)

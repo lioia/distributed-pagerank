@@ -25,14 +25,12 @@ RUN  protoc \
     --go_opt=paths=source_relative \
     --go-grpc_out=. \
     --go-grpc_opt=paths=source_relative \
-    proto/*.proto
+    pkg/proto/*.proto
 
 # Copy and compile source code
-COPY graph/ graph/ 
-COPY node/ node/ 
-COPY utils/ utils/
-COPY main.go .
-RUN CGO_ENABLED=0 go build -ldflags="-s -w"
+COPY pkg/ pkg/ 
+COPY cmd/ cmd/
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" cmd/server/main.go
 
 EXPOSE $PORT
 

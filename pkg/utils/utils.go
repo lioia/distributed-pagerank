@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/lioia/distributed-pagerank/proto"
+	"github.com/lioia/distributed-pagerank/pkg/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

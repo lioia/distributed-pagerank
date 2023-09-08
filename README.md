@@ -20,11 +20,11 @@ Setup `config.json` (not required)
   --go_opt=paths=source_relative \
   --go-grpc_out=. \
   --go-grpc_opt=paths=source_relative \
-  proto/*.proto
+  pkg/proto/*.proto
   ```
 - Node
   ```bash
-  go build -ldflags="-s -w" -o build/node
+  go build -ldflags="-s -w" -o build/server cmd/server/main.go
   ```
 
 ### Running
@@ -36,7 +36,7 @@ Local:
   ```
 - Node:
   ```bash
-  ./build/node
+  ./build/server
   ```
 
 Docker Compose:

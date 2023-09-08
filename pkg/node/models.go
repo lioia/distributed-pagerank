@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/lioia/distributed-pagerank/graph"
-	"github.com/lioia/distributed-pagerank/proto"
-	"github.com/lioia/distributed-pagerank/utils"
+	"github.com/lioia/distributed-pagerank/pkg/graph"
+	"github.com/lioia/distributed-pagerank/pkg/proto"
+	"github.com/lioia/distributed-pagerank/pkg/utils"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 

@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lioia/distributed-pagerank/proto"
+	"github.com/lioia/distributed-pagerank/pkg/proto"
 )
 
 func Write(output string, graph map[int32]*proto.GraphNode) error {
