@@ -44,8 +44,36 @@ Docker Compose:
 docker compose up --build
 ```
 
+### AWS
+
+Requirements:
+- `ansible`: [installation instructions](https://docs.ansible.com/ansible/2.9/installation_guide/intro_installation.html)
+  - `boto3` and `botocore`: dynamic inventory
+- `terraform`: [installation instructions](https://developer.hashicorp.com/terraform/downloads?product_intent=terraform)
+- AWS CLI: [installation instructions](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+- `python`: run automated script
+
+Getting started:
+- Install AWS plugin for Ansible:
+  ```bash
+  ansible-galaxy collection install amazon.aws
+  ```
+- Configure variables in `aws/terraform.tfvars` as desired
+- Configure AWS CLI in `$HOME/.aws/credentials`
+- Download `key.pem`
+
+Run:
+```bash
+python aws/deploy.py
+```
+
 ## Notes - Docker Compose
 
 - MASTER env var, has to be set like this: `<master_service_name>:<master_port>`
 - To enter input to the master node, attach to the Docker image:
   `docker attach <master-service-name>`
+
+## To Do 
+- Master starts API service to receive config
+  - Results written to file (maybe http server)
+- Local client to contact the Master and upload graph
