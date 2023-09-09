@@ -9,7 +9,6 @@
 ## Getting Started
 
 Setup `.env` following `.env.example`
-Setup `config.json` (not required)
 
 ## Building
 
@@ -20,11 +19,15 @@ Setup `config.json` (not required)
   --go_opt=paths=source_relative \
   --go-grpc_out=. \
   --go-grpc_opt=paths=source_relative \
-  pkg/proto/*.proto
+  proto/*.proto
   ```
-- Node
+- Server (Node) 
   ```bash
   go build -ldflags="-s -w" -o build/server cmd/server/main.go
+  ```
+- Client
+  ```bash
+  go build -ldflags="-s -w" -o build/client cmd/client/main.go
   ```
 
 ### Running
@@ -34,9 +37,13 @@ Local:
   ```bash
   docker run -it --rm --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq
   ```
-- Node:
+- Server:
   ```bash
   ./build/server
+  ```
+- Client:
+  ```bash
+  ./build/client
   ```
 
 Docker Compose:
@@ -48,7 +55,6 @@ docker compose up --build
 
 Requirements:
 - `ansible`: [installation instructions](https://docs.ansible.com/ansible/2.9/installation_guide/intro_installation.html)
-  - `boto3` and `botocore`: dynamic inventory
 - `terraform`: [installation instructions](https://developer.hashicorp.com/terraform/downloads?product_intent=terraform)
 - AWS CLI: [installation instructions](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 - `python`: run automated script
@@ -70,10 +76,5 @@ python aws/deploy.py
 ## Notes - Docker Compose
 
 - MASTER env var, has to be set like this: `<master_service_name>:<master_port>`
-- To enter input to the master node, attach to the Docker image:
-  `docker attach <master-service-name>`
-
-## To Do 
-- Master starts API service to receive config
-  - Results written to file (maybe http server)
-- Local client to contact the Master and upload graph
+- To enter input to the client, attach to the Docker image:
+  `docker attach <client-service-name>`

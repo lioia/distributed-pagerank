@@ -3,8 +3,8 @@ package node
 import (
 	"context"
 
-	"github.com/lioia/distributed-pagerank/pkg/proto"
 	"github.com/lioia/distributed-pagerank/pkg/utils"
+	"github.com/lioia/distributed-pagerank/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )

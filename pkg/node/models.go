@@ -1,12 +1,10 @@
 package node
 
 import (
-	"fmt"
 	"sync"
 
-	"github.com/lioia/distributed-pagerank/pkg/graph"
-	"github.com/lioia/distributed-pagerank/pkg/proto"
 	"github.com/lioia/distributed-pagerank/pkg/utils"
+	"github.com/lioia/distributed-pagerank/proto"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -58,22 +56,6 @@ func RoleToString(role Role) string {
 		return "Worker"
 	}
 	return "Undefined"
-}
-
-func (n *Node) InitializeMaster() error {
-	config, err := utils.LoadConfiguration()
-	if err != nil {
-		return fmt.Errorf("Failed to read configuration file: %v", err)
-	}
-	graph, err := graph.LoadGraphResource(config.Graph)
-	if err != nil {
-		return fmt.Errorf("Failed to read graph: %v", err)
-	}
-	n.State.C = config.C
-	n.State.Threshold = config.Threshold
-	n.State.Output = config.Output
-	n.State.Graph = graph
-	return nil
 }
 
 func (n *Node) InitializeWorker(master string, join *proto.Join) (workQueue, resultQueue string) {

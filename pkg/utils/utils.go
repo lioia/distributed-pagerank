@@ -7,13 +7,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/lioia/distributed-pagerank/pkg/proto"
+	"github.com/lioia/distributed-pagerank/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type Client struct {
-	Client proto.NodeClient
+type Client[T interface{}] struct {
+	Client T
 	Ctx    context.Context
 	conn   *grpc.ClientConn
 	cancel context.CancelFunc
@@ -21,17 +21,17 @@ type Client struct {
 
 // Utility function to create a gRPC client to `url`
 // Has to be closed (`c.Close()`)
-func NodeCall(url string) (Client, error) {
+func NodeCall(url string) (Client[proto.NodeClient], error) {
 	conn, err := grpc.Dial(
 		url,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		return Client{}, err
+		return Client[proto.NodeClient]{}, err
 	}
 	client := proto.NewNodeClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	return Client{
+	return Client[proto.NodeClient]{
 		conn:   conn,
 		Client: client,
 		Ctx:    ctx,
@@ -39,7 +39,27 @@ func NodeCall(url string) (Client, error) {
 	}, nil
 }
 
-func (c Client) Close() {
+// Utility function to create a gRPC client to `url`
+// Has to be closed (`c.Close()`)
+func ApiCall(url string) (Client[proto.APIClient], error) {
+	conn, err := grpc.Dial(
+		url,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		return Client[proto.APIClient]{}, err
+	}
+	client := proto.NewAPIClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	return Client[proto.APIClient]{
+		conn:   conn,
+		Client: client,
+		Ctx:    ctx,
+		cancel: cancel,
+	}, nil
+}
+
+func (c Client[T]) Close() {
 	c.cancel()
 	c.conn.Close()
 }

@@ -4,19 +4,22 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"net"
 	"sync"
 	"time"
 
 	"github.com/lioia/distributed-pagerank/pkg/graph"
-	"github.com/lioia/distributed-pagerank/pkg/proto"
 	"github.com/lioia/distributed-pagerank/pkg/utils"
+	"github.com/lioia/distributed-pagerank/proto"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"google.golang.org/grpc"
 	protobuf "google.golang.org/protobuf/proto"
 )
 
 func (n *Node) masterUpdate() {
 	status := make(chan bool)
+	go masterInitializeAPIServer(n)
 	go masterReadQueue(n, status)
 	// wait for queue registration
 	<-status
@@ -57,9 +60,16 @@ func masterWait(n *Node) error {
 		// No other node in the network -> calculating PageRank on this node
 		if len(n.State.Others) == 0 {
 			graph.SingleNodePageRank(n.State.Graph, n.State.C, n.State.Threshold)
-			err := graph.Write(n.State.Output, n.State.Graph)
-			utils.FailOnError("Failed to write graph to output %s", err, n.State.Output)
-			fmt.Printf("Computation finished; output written to %s\n", n.State.Output)
+			fmt.Printf("Computation finished. Sending results to client\n")
+			client, err := utils.ApiCall(n.State.Client)
+			utils.FailOnError("Failed to create connection to the client", err)
+			defer client.Close()
+			results := &proto.Result{Values: make(map[int32]float64)}
+			for id, v := range n.State.Graph {
+				results.Values[id] = v.Rank
+			}
+			_, err = client.Client.Results(client.Ctx, results)
+			utils.FailOnError("Failed to send client results", err)
 			// Node Reset
 			// Next time on wait, it will ask for a new graph
 			n.State = &proto.State{
@@ -95,30 +105,7 @@ func masterWait(n *Node) error {
 		utils.NodeLog("master", "Completed Wait phase; switch to Map phase (%d jobs)", n.Jobs)
 		return nil
 	}
-	// Ask user configuration
-	fmt.Println("Start new computation")
-	c := utils.ReadFloat64FromStdin("Enter c-value [in range (0.0..1.0)]: ")
-	threshold := utils.ReadFloat64FromStdin("Enter threshold [in range (0.0..1.0)]: ")
-	output := utils.ReadStringFromStdin("Enter output file: ")
-	var g map[int32]*proto.GraphNode
-	var input string
-	for {
-		fmt.Printf("Enter graph file [local or network resource]: ")
-		fmt.Scanln(&input)
-		var err error
-		g, err = graph.LoadGraphResource(input)
-		if err != nil {
-			fmt.Println("Graph file could not be loaded correctly. Try again")
-			continue
-		}
-		break
-	}
-	n.Data = sync.Map{}
-	n.State.Graph = g
-	n.State.C = c
-	n.State.Threshold = threshold
-	n.State.Output = output
-	// On next Wait phase, it will send the subgraphs to the queue
+	// Wait for configuration from client
 	return nil
 }
 
@@ -189,9 +176,16 @@ func masterConvergence(n *Node) {
 		for id := range n.State.Graph {
 			n.State.Graph[id].Rank /= rankSum
 		}
-		err := graph.Write(n.State.Output, n.State.Graph)
-		utils.FailOnError("Failed to write graph to output %s", err, n.State.Output)
-		fmt.Printf("Computation finished; output written to %s\n", n.State.Output)
+		fmt.Printf("Computation finished. Sending results to client\n")
+		client, err := utils.ApiCall(n.State.Client)
+		utils.FailOnError("Failed to create connection to the client", err)
+		defer client.Close()
+		results := &proto.Result{Values: make(map[int32]float64)}
+		for id, v := range n.State.Graph {
+			results.Values[id] = v.Rank
+		}
+		_, err = client.Client.Results(client.Ctx, results)
+		utils.FailOnError("Failed to send client results", err)
 		// Node Reset
 		n.State = &proto.State{
 			Graph:     nil,
@@ -260,6 +254,19 @@ func masterSendOtherStateUpdate(n *Node) {
 
 	// Do not send state update to working workers
 	// It will happen on next state update
+}
+
+func masterInitializeAPIServer(n *Node) {
+	apiPort, err := utils.ReadIntEnvVar("API_PORT")
+	utils.FailOnError("Failed to read API_PORT", err)
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", apiPort))
+	utils.FailOnError("Failed to listen to API server", err)
+	defer lis.Close()
+	server := grpc.NewServer()
+	proto.RegisterAPIServer(server, &ApiServerImpl{Node: n})
+	fmt.Printf("Starting API server at %s\n", lis.Addr().String())
+	err = server.Serve(lis)
+	utils.FailOnError("Failed to serve", err)
 }
 
 func masterWriteQueue(n *Node, fn func(map[int32]*proto.GraphNode) *proto.Job) error {

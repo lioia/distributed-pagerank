@@ -6,8 +6,8 @@ import (
 	"sync"
 
 	"github.com/lioia/distributed-pagerank/pkg/node"
-	"github.com/lioia/distributed-pagerank/pkg/proto"
 	"github.com/lioia/distributed-pagerank/pkg/utils"
+	"github.com/lioia/distributed-pagerank/proto"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"
@@ -23,6 +23,7 @@ func main() {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", env.Port))
 	utils.FailOnError("Failed to listen for node server", err)
 	// lis.Close in goroutine
+
 	realPort := env.Port
 	realHost := env.Host
 	if env.Port == 0 {
@@ -66,9 +67,6 @@ func main() {
 		// There is no node at the address -> creating a new network
 		// This node will be the master
 		utils.NodeLog("master", "No master node found at %s", env.Master)
-		if err := n.InitializeMaster(); err != nil {
-			utils.NodeLog("master", "%v", err)
-		}
 	} else {
 		utils.NodeLog("worker", "Found master at %s", env.Master)
 		workQueueName, resultQueueName := n.InitializeWorker(env.Master, join)

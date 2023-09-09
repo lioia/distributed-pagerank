@@ -27,15 +27,15 @@ func ReadEnvVars() EnvVars {
 	_ = godotenv.Load()
 	master, err := readStringEnvVar("MASTER")
 	FailOnError("Failed to read environment variables", err)
-	host := readStringEnvVarOr("HOST", "")
-	port, err := readIntEnvVar("PORT")
+	host := ReadStringEnvVarOr("HOST", "")
+	port, err := ReadIntEnvVar("PORT")
 	FailOnError("Failed to read environment variables", err)
 	rabbitHost, err := readStringEnvVar("RABBIT_HOST")
 	FailOnError("Failed to read environment variables", err)
-	rabbitUser := readStringEnvVarOr("RABBIT_USER", "guest")
-	rabbitPass := readStringEnvVarOr("RABBIT_PASSWORD", "guest")
-	workQueue := readStringEnvVarOr("WORK_QUEUE", "work")
-	resultQueue := readStringEnvVarOr("RESULT_QUEUE", "result")
+	rabbitUser := ReadStringEnvVarOr("RABBIT_USER", "guest")
+	rabbitPass := ReadStringEnvVarOr("RABBIT_PASSWORD", "guest")
+	workQueue := ReadStringEnvVarOr("WORK_QUEUE", "work")
+	resultQueue := ReadStringEnvVarOr("RESULT_QUEUE", "result")
 	nodeLog := readBoolEnvVarOr("NODE_LOG", false)
 	serverLog := readBoolEnvVarOr("SERVER_LOG", false)
 	return EnvVars{
@@ -54,7 +54,7 @@ func readStringEnvVar(name string) (string, error) {
 	return value, nil
 }
 
-func readIntEnvVar(name string) (int, error) {
+func ReadIntEnvVar(name string) (int, error) {
 	valueStr, err := readStringEnvVar(name)
 	if err != nil {
 		return 0, err
@@ -66,7 +66,7 @@ func readIntEnvVar(name string) (int, error) {
 	return value, nil
 }
 
-func readStringEnvVarOr(name string, or string) string {
+func ReadStringEnvVarOr(name string, or string) string {
 	value, err := readStringEnvVar(name)
 	if err != nil {
 		value = or
@@ -75,7 +75,7 @@ func readStringEnvVarOr(name string, or string) string {
 }
 
 func ReadIntEnvVarOr(name string, or int) int {
-	value, err := readIntEnvVar(name)
+	value, err := ReadIntEnvVar(name)
 	if err != nil {
 		value = or
 	}
