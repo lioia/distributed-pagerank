@@ -22,7 +22,7 @@ resource "aws_vpc" "dp-vpc" {
   }
 }
 
-# Create private subnet (used for node communication)
+# Create public subnet (used for node communication)
 resource "aws_subnet" "dp-subnet" {
   vpc_id                  = aws_vpc.dp-vpc.id
   cidr_block              = var.vpc_cidr
@@ -33,7 +33,7 @@ resource "aws_subnet" "dp-subnet" {
   }
 }
 
-# Create Internet Gateway (NAT for private subnet)
+# Create Internet Gateway 
 resource "aws_internet_gateway" "dp-ig" {
   vpc_id = aws_vpc.dp-vpc.id
 
@@ -81,6 +81,13 @@ resource "aws_security_group" "dp-security-group" {
   }
 
   # 1234 used by node
+  ingress {
+    cidr_blocks = ["0.0.0.0/0"]
+    from_port   = 5678
+    to_port     = 5678
+    protocol    = "tcp"
+  }
+
   ingress {
     cidr_blocks = [var.vpc_cidr]
     from_port   = 1234
