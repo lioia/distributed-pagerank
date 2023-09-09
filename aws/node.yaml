@@ -33,9 +33,8 @@
     - name: Copy Application
       copy:
         src:
-          - "{{ local_app_dir }}/node"
-          - "{{ local_app_dir }}/utils"
-          - "{{ local_app_dir }}/graph"
+          - "{{ local_app_dir }}/proto"
+          - "{{ local_app_dir }}/pkg"
           - "{{ local_app_dir }}/main.go"
           - "{{ local_app_dir }}/go.mod"
           - "{{ local_app_dir }}/go.sum"
@@ -44,7 +43,7 @@
     - name: Compile Application
       shell: |
         cd "{{ remote_app_dir }}"
-        go build -ldflags="-s -w" -o build/node
+        go build -ldflags="-s -w" -o build/node cmd/server/main.go
     - name: Copy systemd unit file
       become: yes
       template:

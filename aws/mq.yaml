@@ -33,7 +33,7 @@
     - name: Add user to RabbitMQ
       become: yes
       shell: |
-        rabbitmqctl add_user "{{ DP_RABBIT_USER }} {{ DP_RABBIT_HOST }}"
+        rabbitmqctl add_user "{{ DP_RABBIT_USER }} {{ DP_RABBIT_PASSWORD }}"
         rabbitmqctl set_user_tags "{{ DP_RABBIT_USER }}" administrator
     - name: Reboot
       reboot:

@@ -163,5 +163,5 @@ output "dp-mq-password" {
 }
 
 output "dp-master-host" {
-  value = aws_instance.dp-master.private_ip
+  value = aws_instance.dp-master.public_ip
 }

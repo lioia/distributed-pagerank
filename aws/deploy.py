@@ -42,14 +42,14 @@ vars = {
     "DP_MASTER": data["dp-master-host"]["value"],
     "DP_RABBIT_HOST" : data["dp-mq-host"]["value"],
     "DP_RABBIT_USER" : data["dp-mq-user"]["value"],
-    "DP_RABBIT_PASSWRD" : data["dp-mq-password"]["value"]
+    "DP_RABBIT_PASSWORD" : data["dp-mq-password"]["value"]
 }
 vars_file = open("vars.json", "w")
 json.dump(vars, vars_file)
 print("\tDeploying RabbitMQ")
-run_command(f"ansible-playbook -i mq.aws_ec2.yml --private-key={key_pem} -u ec2-user mq.yaml")
+run_command(f"ANSIBLE_SSH_ARGS='-o StrictHostKeyChecking=no' ansible-playbook -i mq.aws_ec2.yml --private-key={key_pem} -u ec2-user mq.yaml")
 print("\tDeploying application")
-run_command(f"ansible-playbook -i node.aws_ec2.yml --private-key={key_pem} -u ec2-user node.yaml")
+run_command(f"ANSIBLE_SSH_ARGS='-o StrictHostKeyChecking=no' ansible-playbook -i node.aws_ec2.yml --private-key={key_pem} -u ec2-user node.yaml")
 print("-------------------------------")
 print("Remove output files")
 os.remove("vars.json")
