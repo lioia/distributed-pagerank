@@ -70,8 +70,8 @@ func masterWait(n *Node) error {
 			}
 			_, err = client.Client.Results(client.Ctx, results)
 			utils.FailOnError("Failed to send client results", err)
+			fmt.Println("Waiting for new computation")
 			// Node Reset
-			// Next time on wait, it will ask for a new graph
 			n.State = &proto.State{
 				Graph:     nil,
 				C:         0.0,
@@ -186,6 +186,7 @@ func masterConvergence(n *Node) {
 		}
 		_, err = client.Client.Results(client.Ctx, results)
 		utils.FailOnError("Failed to send client results", err)
+		fmt.Println("Waiting for new computation")
 		// Node Reset
 		n.State = &proto.State{
 			Graph:     nil,

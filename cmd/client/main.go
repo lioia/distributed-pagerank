@@ -11,15 +11,12 @@ import (
 )
 
 func main() {
-	host := utils.ReadStringEnvVarOr("HOST", "")
+	host := utils.ReadStringEnvVarOr("HOST", "localhost")
 	lis, err := net.Listen("tcp", fmt.Sprintf("%s:0", host))
 	utils.FailOnError("Failed to listen for node server", err)
 	defer lis.Close()
 
 	port := lis.Addr().(*net.TCPAddr).Port
-	if host == "" {
-		host = lis.Addr().(*net.TCPAddr).IP.String()
-	}
 
 	api := utils.ReadStringFromStdin("Enter the API url: ")
 	c := utils.ReadFloat64FromStdin("Enter c-value [in range (0.0..1.0)]: ")
@@ -39,8 +36,16 @@ func main() {
 	utils.FailOnError("Failed to send configuration to server", err)
 
 	fmt.Println("Waiting for computation to finish")
-	server := grpc.NewServer()
-	proto.RegisterAPIServer(server, &node.ApiServerImpl{})
-	err = server.Serve(lis)
-	utils.FailOnError("Failed to serve", err)
+	status := make(chan bool)
+	go func() {
+		server := grpc.NewServer()
+		proto.RegisterAPIServer(server, &node.ApiServerImpl{Status: status})
+		err = server.Serve(lis)
+		utils.FailOnError("Failed to serve", err)
+	}()
+
+	for {
+		<-status
+		break
+	}
 }

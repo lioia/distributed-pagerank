@@ -10,7 +10,8 @@ import (
 )
 
 type ApiServerImpl struct {
-	Node *Node
+	Node   *Node     // Node state
+	Status chan bool // Client state
 	proto.UnimplementedAPIServer
 }
 
@@ -31,5 +32,7 @@ func (s *ApiServerImpl) Results(_ context.Context, in *proto.Result) (*emptypb.E
 	for id, v := range in.Values {
 		fmt.Printf("Node %d with rank %f\n", id, v)
 	}
+	// Close client
+	s.Status <- true
 	return &emptypb.Empty{}, nil
 }

@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/lioia/distributed-pagerank/pkg/utils"
@@ -178,7 +179,7 @@ func workerCandidacy(n *Node) {
 	}
 	n.State.Others = newWorkers
 	if elected {
-		utils.NodeLog("worker", "Elected as new master")
+		fmt.Println("Elected as new master")
 		// Stop goroutines
 		n.QueueReader <- true
 		// Empty queues
