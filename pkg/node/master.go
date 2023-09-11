@@ -64,9 +64,12 @@ func masterWait(n *Node) error {
 			client, err := utils.ApiCall(n.State.Client)
 			utils.FailOnError("Failed to create connection to the client", err)
 			defer client.Close()
-			results := &proto.Result{Values: make(map[int32]float64)}
+			results := &proto.Ranks{
+				Ranks:  make(map[int32]float64),
+				Master: n.Connection,
+			}
 			for id, v := range n.State.Graph {
-				results.Values[id] = v.Rank
+				results.Ranks[id] = v.Rank
 			}
 			_, err = client.Client.Results(client.Ctx, results)
 			utils.FailOnError("Failed to send client results", err)
@@ -180,9 +183,12 @@ func masterConvergence(n *Node) {
 		client, err := utils.ApiCall(n.State.Client)
 		utils.FailOnError("Failed to create connection to the client", err)
 		defer client.Close()
-		results := &proto.Result{Values: make(map[int32]float64)}
+		results := &proto.Ranks{
+			Ranks:  make(map[int32]float64),
+			Master: n.Connection,
+		}
 		for id, v := range n.State.Graph {
-			results.Values[id] = v.Rank
+			results.Ranks[id] = v.Rank
 		}
 		_, err = client.Client.Results(client.Ctx, results)
 		utils.FailOnError("Failed to send client results", err)

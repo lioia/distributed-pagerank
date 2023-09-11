@@ -10,8 +10,8 @@ import (
 )
 
 type ApiServerImpl struct {
-	Node  *Node                  // Node state
-	Ranks chan map[int32]float64 // Client state
+	Node  *Node             // Node state
+	Ranks chan *proto.Ranks // Client state
 	proto.UnimplementedAPIServer
 }
 
@@ -27,7 +27,7 @@ func (s *ApiServerImpl) GraphUpload(_ context.Context, in *proto.Configuration) 
 	return &emptypb.Empty{}, nil
 }
 
-func (s *ApiServerImpl) Results(_ context.Context, in *proto.Result) (*emptypb.Empty, error) {
-	s.Ranks <- in.Values
+func (s *ApiServerImpl) Results(_ context.Context, in *proto.Ranks) (*emptypb.Empty, error) {
+	s.Ranks <- in
 	return &emptypb.Empty{}, nil
 }

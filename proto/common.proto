@@ -8,7 +8,3 @@ message GraphNodeInfo {
   int32 outlinks = 1; // Number of outlinks
   double rank = 2;    // Node Rank (needs to be manually updated)
 }
-
-message Result {
-  map<int32, double> values = 1; // Values in Result queue
-}

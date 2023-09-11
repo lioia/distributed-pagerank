@@ -28,6 +28,7 @@ func (t TemplateRenderer) Render(w io.Writer, name string, data interface{}, e e
 
 type IndexPage struct {
 	Status     string
+	Master     string
 	Values     map[int32]float64
 	Error      string
 	FormErrors map[string]string
@@ -44,7 +45,7 @@ func main() {
 	utils.FailOnError("Failed to listen for node server", err)
 	fmt.Printf("Starting client API server on: %s:%d\n", host, rpcPort)
 
-	ranks := make(chan map[int32]float64)
+	ranks := make(chan *proto.Ranks)
 	// Create gRPC server
 	go func() {
 		defer lis.Close()
@@ -82,7 +83,7 @@ func index(c echo.Context) error {
 	return c.Render(200, "index.html", nil)
 }
 
-func sseRanks(c echo.Context, ranks chan map[int32]float64, tmpls *template.Template) error {
+func sseRanks(c echo.Context, ranks chan *proto.Ranks, tmpls *template.Template) error {
 	c.Response().Header().Set("Content-Type", "text/event-stream")
 	c.Response().Header().Set("Cache-Control", "no-cache")
 	c.Response().Header().Set("Connection", "keep-alive")
@@ -93,13 +94,15 @@ func sseRanks(c echo.Context, ranks chan map[int32]float64, tmpls *template.Temp
 		case values := <-ranks:
 			var msgBuffer bytes.Buffer
 			var msg string
-			err := tmpls.ExecuteTemplate(&msgBuffer, "ranks", IndexPage{Values: values})
+			err := tmpls.ExecuteTemplate(&msgBuffer, "ranks", IndexPage{
+				Values: values.Ranks,
+				Master: values.Master,
+			})
 			if err != nil {
 				msg = "Failed to read values"
 			} else {
 				msg = strings.ReplaceAll(msgBuffer.String(), "\n", "")
 			}
-			c.Logger().Printf("Message: %s\n", msg)
 			fmt.Fprintf(c.Response().Writer, "data: %s\n\n", msg)
 			return nil
 		}

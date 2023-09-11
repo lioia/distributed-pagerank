@@ -2,8 +2,6 @@ syntax = "proto3";
 
 import "google/protobuf/empty.proto";
 
-import "proto/common.proto";
-
 option go_package = "github.com/lioia/distributed-pagerank/proto";
 
 package proto;
@@ -11,7 +9,7 @@ package proto;
 // Client - Master communication
 service API {
   rpc GraphUpload(Configuration) returns (google.protobuf.Empty) {}
-  rpc Results(Result) returns (google.protobuf.Empty) {}
+  rpc Results(Ranks) returns (google.protobuf.Empty) {}
 }
 
 message Configuration {
@@ -19,4 +17,9 @@ message Configuration {
   double c = 2;          // C value for PageRank
   double threshold = 3;  // Threshold value for PageRank
   string graph = 4;      // Graph URL
+}
+
+message Ranks {
+  string master = 1;            // Master connection info
+  map<int32, double> ranks = 2; // Computed ranks
 }
