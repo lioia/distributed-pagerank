@@ -35,13 +35,14 @@ type IndexPage struct {
 
 func main() {
 	host, err := utils.ReadStringEnvVar("HOST")
-	webPort := utils.ReadIntEnvVarOr("PORT", 80)
 	utils.FailOnError("Failed to load environment variables", err)
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s:0", host))
+	rpcPort, err := utils.ReadIntEnvVar("RPC_PORT")
+	utils.FailOnError("Failed to load environment variables", err)
+	webPort := utils.ReadIntEnvVarOr("WEB_PORT", 80)
+
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, rpcPort))
 	utils.FailOnError("Failed to listen for node server", err)
-	port := lis.Addr().(*net.TCPAddr).Port
-	connection := fmt.Sprintf("%s:%d", host, port)
-	fmt.Printf("Starting client API server on: %s\n", connection)
+	fmt.Printf("Starting client API server on: %s:%d\n", host, rpcPort)
 
 	ranks := make(chan map[int32]float64)
 	// Create gRPC server
@@ -68,7 +69,7 @@ func main() {
 	e.GET("/", index)
 
 	e.POST("/ranks/new", func(c echo.Context) error {
-		return newRanks(c, connection)
+		return newRanks(c, fmt.Sprintf("%s:%d", host, rpcPort))
 	})
 	e.GET("/ranks", func(c echo.Context) error {
 		return sseRanks(c, ranks, tmpls)

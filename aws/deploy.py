@@ -19,6 +19,33 @@ def run_command(command):
         print(f"Command {command} failed")
         exit(return_code)
 
+def service(host):
+    service = f"""[Unit]
+Description=distributed-pagerank application
+
+[Service]
+Environment=PORT=1234
+Environment=API_PORT=5678
+Environment=HEALTH_CHECK=3000
+Environment=HOST={host}
+Environment=MASTER={private_master}:1234
+Environment=RABBIT_HOST={private_mq_host}
+Environment=RABBIT_USER={mq_user}
+Environment=RABBIT_PASSWORD={mq_password}
+Environment=NODE_LOG=false
+Environment=SERVER_LOG=false
+Type=simple
+WorkingDirectory=/home/ec2-user/dp
+ExecStart=/home/ec2-user/dp/build/node
+ExecStop=/bin/kill -TERM $MAINPID
+
+[Install]
+WantedBy=multi-user.target
+    """
+    service_file = open("dp.service", "w")
+    service_file.write(service)
+    service_file.close()
+
 key_pem = input("Please enter the path to key.pem: ")
 os.chdir("aws")
 
@@ -36,47 +63,56 @@ print("Waiting 30 sec for instances to start")
 time.sleep(30)
 print("Deploying using Ansible")
 json_file = open("tf.json")
-json_file = open("tf.json")
 data = json.load(json_file)
-public_master = data["dp-master-host"]["value"]
-private_mq_host = data["dp-mq-host"]["value"]
+
+private_master = data["dp-master-host-private"]["value"]
+public_master = data["dp-master-host-public"]["value"]
+
+private_mq_host = data["dp-mq-host-private"]["value"]
+public_mq_host = data["dp-mq-host-public"]["value"]
 mq_user = data["dp-mq-user"]["value"]
 mq_password = data["dp-mq-password"]["value"]
-public_mq_host = data["dp-mq-public-host"]["value"]
-public_workers_hosts = data["dp-workers-hosts"]["value"]
+
+public_workers_hosts = data["dp-workers-hosts-public"]["value"]
+private_workers_hosts = data["dp-workers-hosts-private"]["value"]
+
+public_client_host = data["dp-client-host-public"]["value"]
+private_client_host = data["dp-client-host-private"]["value"]
 
 print("Deploying RabbitMQ")
 run_command(f"./mq.sh {key_pem} {public_mq_host} {mq_user} {mq_password}")
-service = f'''[Unit]
+print("Deploying Master")
+service(private_master)
+run_command(f"./node.sh {key_pem} {public_master}")
+for i in range(len(public_workers_hosts)):
+    worker = public_workers_hosts[i]
+    private_worker = private_workers_hosts[i]
+    print(f"Deploying Worker {worker}")
+    service(private_worker)
+    run_command(f"./node.sh {key_pem} {worker}")
+
+client_service = f'''[Unit]
 Description=distributed-pagerank application
 
 [Service]
-Environment=PORT=1234
-Environment=API_PORT=5678
-Environment=HEALTH_CHECK=3000
-Environment=MASTER={public_master}
-Environment=RABBIT_HOST={private_mq_host}
-Environment=RABBIT_USER={mq_user}
-Environment=RABBIT_PASSWORD={mq_password}
-Environment=NODE_LOG=false
-Environment=SERVER_LOG=false
+Environment=HOST={private_client_host}
+Environment=RPC_PORT=1234
 Type=simple
 WorkingDirectory=/home/ec2-user/dp
-ExecStart=/home/ec2-user/dp/build/node
+ExecStart=/home/ec2-user/dp/build/client
 ExecStop=/bin/kill -TERM $MAINPID
 
 [Install]
 WantedBy=multi-user.target
 '''
-service_file = open("dp.service", "w")
-service_file.write(service)
-print("Deploying Master")
-run_command(f"./node.sh {key_pem} {public_master} {public_master} {private_mq_host} {mq_user} {mq_password}")
-for worker in public_workers_hosts:
-    print(f"Deploying Worker {worker}")
-    run_command(f"./node.sh {key_pem} {worker} {public_master} {private_mq_host} {mq_user} {mq_password}")
+client_service_file = open("dp-client.service", "w")
+client_service_file.write(client_service)
+client_service_file.close()
+print("Deploying Client")
+run_command(f"./client.sh {key_pem} {public_client_host}")
 
 print("Removing temp files")
 os.remove("tf.json")
 os.remove("dp.service")
-print(f"Correctly deployed application. You can contact it at {public_master}")
+os.remove("dp-client.service")
+print(f"Correctly deployed application. You can contact it at {public_client_host} (API at: {private_master}:5678)")

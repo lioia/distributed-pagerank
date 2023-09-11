@@ -22,7 +22,7 @@ resource "aws_vpc" "dp-vpc" {
   }
 }
 
-# Create public subnet 
+# Create subnet
 resource "aws_subnet" "dp-subnet" {
   vpc_id                  = aws_vpc.dp-vpc.id
   cidr_block              = var.vpc_cidr
@@ -74,7 +74,7 @@ resource "aws_security_group" "dp-security-group" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # SSH used by Ansible
+  # SSH used for configuration
   ingress {
     cidr_blocks = ["0.0.0.0/0"]
     from_port   = 22
@@ -82,15 +82,15 @@ resource "aws_security_group" "dp-security-group" {
     protocol    = "tcp"
   }
 
-  # 5678 used by client
+  # 5678 used by web client
   ingress {
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.vpc_cidr]
     from_port   = 5678
     to_port     = 5678
     protocol    = "tcp"
   }
 
-  # 1234 used by node
+  # 1234 used by nodes
   ingress {
     cidr_blocks = [var.vpc_cidr]
     from_port   = 1234
@@ -103,6 +103,14 @@ resource "aws_security_group" "dp-security-group" {
     cidr_blocks = [var.vpc_cidr]
     from_port   = 5672
     to_port     = 5672
+    protocol    = "tcp"
+  }
+
+  # HTTP web client
+  ingress {
+    cidr_blocks = ["0.0.0.0/0"]
+    from_port   = 80
+    to_port     = 80
     protocol    = "tcp"
   }
 
@@ -152,9 +160,26 @@ resource "aws_instance" "dp-worker" {
   }
 }
 
-# Output variables (used by ansible)
-output "dp-mq-host" {
+# Create EC2 instance for client
+resource "aws_instance" "dp-client" {
+  ami                    = var.aws_ami
+  instance_type          = var.instance
+  subnet_id              = aws_subnet.dp-subnet.id
+  vpc_security_group_ids = [aws_security_group.dp-security-group.id]
+  key_name               = var.key_pair
+
+  tags = {
+    Name = "${var.tag}-client"
+  }
+}
+
+# Output variables
+output "dp-mq-host-private" {
   value = aws_instance.dp-mq.private_ip
+}
+
+output "dp-mq-host-public" {
+  value = aws_instance.dp-mq.public_ip
 }
 
 output "dp-mq-user" {
@@ -166,15 +191,27 @@ output "dp-mq-password" {
   sensitive = true
 }
 
-output "dp-master-host" {
+output "dp-master-host-private" {
+  value = aws_instance.dp-master.private_ip
+}
+
+output "dp-master-host-public" {
   value = aws_instance.dp-master.public_ip
 }
 
-# Additional variables (used by bash scripts)
-output "dp-workers-hosts" {
+output "dp-workers-hosts-public" {
   value = aws_instance.dp-worker.*.public_ip
 }
 
-output "dp-mq-public-host" {
-  value = aws_instance.dp-mq.public_ip
+output "dp-workers-hosts-private" {
+  value = aws_instance.dp-worker.*.private_ip
 }
+
+output "dp-client-host-private" {
+  value = aws_instance.dp-client.private_ip
+}
+
+output "dp-client-host-public" {
+  value = aws_instance.dp-client.public_ip
+}
+

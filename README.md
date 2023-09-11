@@ -78,3 +78,6 @@ python aws/deploy.py
 - MASTER env var, has to be set like this: `<master_service_name>:<master_port>`
 - To get the web client IP, run `docker ps` to get the container id
   and `docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $id`
+
+## To Do 
+- Send and print master node on web client
