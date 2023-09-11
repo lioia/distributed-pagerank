@@ -79,5 +79,57 @@ python aws/deploy.py
 - To get the web client IP, run `docker ps` to get the container id
   and `docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $id`
 
-## To Do 
-- Send and print master node on web client
+## Project Structure
+
+```
+├── aws                       - AWS deploy configuration files
+│   ├── ansible                 - Ansible deploy (not updated, not working correctly)
+│   │   ├── deploy_ansible.py
+│   │   ├── dp.service.j2
+│   │   ├── mq.aws_ec2.yml
+│   │   ├── mq.yaml
+│   │   ├── node.aws_ec2.yml
+│   │   └── node.yaml
+│   ├── client.sh               - Deploy Web client script
+│   ├── mq.sh                   - Deploy RabbitMQ script
+│   ├── node.sh                 - Deploy node script
+│   ├── deploy.py               - General deploy script
+│   ├── rabbitmq.repo           - RabbitMQ repo (used by mq.sh)
+│   ├── dp.tf                   - Terraform specs
+│   ├── variables.tf            - Terraform variables
+│   └── terraform.tfvars        - Terraform configurable variables
+├── cmd                       - Entrypoints
+│   ├── client
+│   │   └── main.go             - Web Client entrypoint
+│   └── server
+│       └── main.go             - Node entrypoint
+├── compose.yaml              - Docker Compose configuration
+├── Dockerfile.client         - Web Client Docker image
+├── Dockerfile.server         - Node Docker image
+├── go.mod                    - Go dependencies
+├── go.sum                    - Go dependencies
+├── pkg                       - Code logic
+│   ├── graph                   - Graph logic
+│   │   ├── graph.go              - Graph loading
+│   │   └── pagerank.go           - PageRank implementation (single node)
+│   ├── node                    - gRPC and node logic
+│   │   ├── api.go                - gRPC interaction between client and master
+│   │   ├── server.go             - gRPC interaction between nodes
+│   │   ├── models.go             - Node models
+│   │   ├── master.go             - Master node logic
+│   │   └── worker.go             - Worker node logic
+│   └── utils                   - Utility functions
+│       ├── env.go                - Environment variables loading
+│       ├── logs.go               - Custom Logging
+│       ├── queue.go              - Useful queue functions
+│       └── utils.go              - General useful functions
+├── proto                     - Protocol Buffers
+│   ├── common.proto            - Common messages
+│   ├── api.proto               - API services (web client - master)
+│   ├── node.proto              - Node services (node - node)
+│   └── jobs.proto              - Queue Messages
+├── public                    - Files used by web client
+│   ├── index.html              - Main web page
+│   └── tmpl.html               - Templates page
+└── README                    - This file
+```
