@@ -1,6 +1,0 @@
-{
-    "c": 0.85,
-    "threshold": 0.0001,
-    "graph": "https://gist.githubusercontent.com/lioia/024936cd137c1863a3034b00c821bad3/raw/ed8dfe77bf42b33603bbfbd88f8ae92f1fab186e/graph.txt",
-    "output": "output.txt"
-}
