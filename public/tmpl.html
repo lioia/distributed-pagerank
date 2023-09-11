@@ -1,0 +1,50 @@
+{{block "ranks.new" .}}
+<form hx-swap="outerHTML" hx-post="/ranks/new" hx-target="#root">
+    <p>
+        <label for="api">API</label>
+        <input name="api" required />
+        {{ if .FormErrors.api }}
+        <span class="text-error">{{.FormErrors.api}}</span>
+        {{end}}
+    </p>
+    <p>
+        <label for="c">C</label>
+        <input name="c" required />
+        {{ if .FormErrors.c }}
+        <span class="text-error">{{.FormErrors.c}}</span>
+        {{end}}
+    </p>
+    <p>
+        <label for="threshold">Threshold</label>
+        <input name="threshold" required />
+        {{ if .FormErrors.threshold }}
+        <span class="text-error">{{.FormErrors.threshold}}</span>
+        {{end}}
+    </p>
+    <p>
+        <label for="graph">Graph</label>
+        <input name="graph" required />
+        {{ if .FormErrors.graph }}
+        <span class="text-error">{{.FormErrors.graph}}</span>
+        {{end}}
+    </p>
+    <div class="is-right" style="padding: 8px;">
+        <button class="button outline primary" type="submit">Rank</button>
+    </div>
+</form>
+<p class="text-error">{{ .Error}}</p>
+{{end}}
+
+{{block "status" .}}
+<div hx-ext="sse" sse-connect="/ranks" sse-swap="message">
+    <p style="text-align: center;">Calculating...</p>
+</div>
+{{end}}
+{{block "ranks" .}}
+{{range $id, $rank := .Values}}
+<p style="width: 100%; text-align: center;">Node {{ $id }} with rank {{ $rank }}</p>
+{{end}}
+<p style="text-align: center;">
+    <a href="/">Compute new ranks</a>
+</p>
+{{end}}

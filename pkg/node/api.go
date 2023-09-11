@@ -10,8 +10,8 @@ import (
 )
 
 type ApiServerImpl struct {
-	Node   *Node     // Node state
-	Status chan bool // Client state
+	Node  *Node                  // Node state
+	Ranks chan map[int32]float64 // Client state
 	proto.UnimplementedAPIServer
 }
 
@@ -28,11 +28,6 @@ func (s *ApiServerImpl) GraphUpload(_ context.Context, in *proto.Configuration) 
 }
 
 func (s *ApiServerImpl) Results(_ context.Context, in *proto.Result) (*emptypb.Empty, error) {
-	fmt.Println("Received results:")
-	for id, v := range in.Values {
-		fmt.Printf("Node %d with rank %f\n", id, v)
-	}
-	// Close client
-	s.Status <- true
+	s.Ranks <- in.Values
 	return &emptypb.Empty{}, nil
 }

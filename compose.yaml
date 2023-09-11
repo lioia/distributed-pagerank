@@ -3,7 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.client
-    stdin_open: true # used to send commands
+    ports:
+      - 80:80
     environment:
       - "HOST=client"
   master:

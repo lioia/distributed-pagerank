@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Distributed PageRank</title>
+    <link rel="stylesheet" href="https://unpkg.com/chota@latest">
+    <script src="https://unpkg.com/htmx.org@1.9.5"
+        integrity="sha384-xcuj3WpfgjlKF+FXhSQFQ0ZNr39ln+hwjN3npfM9VBnUskLolQAcN80McRIVOPuO"
+        crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/htmx.org/dist/ext/sse.js"></script>
+</head>
+
+<body>
+    <header>
+        <h1 style="width: 100%; text-align: center;">Distributed PageRank</h1>
+    </header>
+    <main class="container">
+        <div id="root">
+            {{ template "ranks.new"}}
+        </div>
+    </main>
+</body>
+
+</html>

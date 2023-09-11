@@ -25,12 +25,12 @@ func ReadEnvVars() EnvVars {
 	// Loading .env file if it exists
 	// It will not override already existing env vars
 	_ = godotenv.Load()
-	master, err := readStringEnvVar("MASTER")
+	master, err := ReadStringEnvVar("MASTER")
 	FailOnError("Failed to read environment variables", err)
 	host := ReadStringEnvVarOr("HOST", "")
 	port, err := ReadIntEnvVar("PORT")
 	FailOnError("Failed to read environment variables", err)
-	rabbitHost, err := readStringEnvVar("RABBIT_HOST")
+	rabbitHost, err := ReadStringEnvVar("RABBIT_HOST")
 	FailOnError("Failed to read environment variables", err)
 	rabbitUser := ReadStringEnvVarOr("RABBIT_USER", "guest")
 	rabbitPass := ReadStringEnvVarOr("RABBIT_PASSWORD", "guest")
@@ -46,7 +46,7 @@ func ReadEnvVars() EnvVars {
 	}
 }
 
-func readStringEnvVar(name string) (string, error) {
+func ReadStringEnvVar(name string) (string, error) {
 	value := os.Getenv(name)
 	if value == "" {
 		return "", fmt.Errorf("%s not set", name)
@@ -55,7 +55,7 @@ func readStringEnvVar(name string) (string, error) {
 }
 
 func ReadIntEnvVar(name string) (int, error) {
-	valueStr, err := readStringEnvVar(name)
+	valueStr, err := ReadStringEnvVar(name)
 	if err != nil {
 		return 0, err
 	}
@@ -67,7 +67,7 @@ func ReadIntEnvVar(name string) (int, error) {
 }
 
 func ReadStringEnvVarOr(name string, or string) string {
-	value, err := readStringEnvVar(name)
+	value, err := ReadStringEnvVar(name)
 	if err != nil {
 		value = or
 	}
@@ -83,7 +83,7 @@ func ReadIntEnvVarOr(name string, or int) int {
 }
 
 func readBoolEnvVarOr(name string, or bool) bool {
-	valueStr, err := readStringEnvVar(name)
+	valueStr, err := ReadStringEnvVar(name)
 	if err != nil {
 		return or
 	}

@@ -76,5 +76,5 @@ python aws/deploy.py
 ## Notes - Docker Compose
 
 - MASTER env var, has to be set like this: `<master_service_name>:<master_port>`
-- To enter input to the client, attach to the Docker image:
-  `docker attach <client-service-name>`
+- To get the web client IP, run `docker ps` to get the container id
+  and `docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $id`
