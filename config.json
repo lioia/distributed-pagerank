@@ -1,0 +1,8 @@
+{
+    "workers": 4,
+    "health_check": 1000,
+    "rabbit_user": "user",
+    "rabbit_password": "user",
+    "grpc_port": 1234,
+    "api_port": 5678
+}

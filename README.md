@@ -33,13 +33,18 @@ Setup `.env` following `.env.example`
 ### Running
 
 Local:
-- RabbitMQ:
+- Configure `.env`
+- Run RabbitMQ:
   ```bash
-  docker run -it --rm --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq
+  docker run -it --rm --name rabbitmq -p 5672:5672 rabbitmq
   ```
-- Server:
+- Run Master:
   ```bash
   ./build/server
+  ```
+- Run Workers (use different port each time):
+  ```bash
+  PORT=1235 ./build/server
   ```
 - Client:
   ```bash
@@ -47,6 +52,11 @@ Local:
   ```
 
 Docker Compose:
+- Configure `config.json` and run
+```bash
+python deploy/compose.py
+```
+- Start using
 ```bash
 docker compose up --build
 ```
