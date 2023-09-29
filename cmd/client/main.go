@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/lioia/distributed-pagerank/pkg/node"
@@ -35,6 +36,7 @@ type IndexPage struct {
 }
 
 func main() {
+	_ = godotenv.Load()
 	host, err := utils.ReadStringEnvVar("HOST")
 	utils.FailOnError("Failed to load environment variables", err)
 	rpcPort, err := utils.ReadIntEnvVar("RPC_PORT")

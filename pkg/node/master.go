@@ -66,7 +66,7 @@ func masterWait(n *Node) error {
 			defer client.Close()
 			results := &proto.Ranks{
 				Ranks:  make(map[int32]float64),
-				Master: n.Connection,
+				Master: n.APIConnection,
 			}
 			for id, v := range n.State.Graph {
 				results.Ranks[id] = v.Rank
@@ -185,7 +185,7 @@ func masterConvergence(n *Node) {
 		defer client.Close()
 		results := &proto.Ranks{
 			Ranks:  make(map[int32]float64),
-			Master: n.Connection,
+			Master: n.APIConnection,
 		}
 		for id, v := range n.State.Graph {
 			results.Ranks[id] = v.Rank
@@ -264,11 +264,14 @@ func masterSendOtherStateUpdate(n *Node) {
 }
 
 func masterInitializeAPIServer(n *Node) {
+	host, err := utils.ReadStringEnvVar("HOST")
+	utils.FailOnError("Failed to read HOST", err)
 	apiPort, err := utils.ReadIntEnvVar("API_PORT")
 	utils.FailOnError("Failed to read API_PORT", err)
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", apiPort))
 	utils.FailOnError("Failed to listen to API server", err)
 	defer lis.Close()
+	n.APIConnection = fmt.Sprintf("%s:%d", host, apiPort)
 	server := grpc.NewServer()
 	proto.RegisterAPIServer(server, &ApiServerImpl{Node: n})
 	fmt.Printf("Starting API server at %s\n", lis.Addr().String())

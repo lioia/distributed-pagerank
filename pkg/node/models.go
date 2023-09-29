@@ -28,17 +28,18 @@ const (
 )
 
 type Node struct {
-	State       *proto.State // Shared node state
-	Role        Role         // What this node has to do
-	Connection  string       // This node connection information
-	Queue       Queue        // Queue information
-	Master      string       // Master node (set if this node is a worker)
-	Candidacy   int64        // Timestamp of new candidacy (0: no candidate)
-	QueueReader chan bool    // Cancel channel for worker goroutine
-	Phase       Phase        // Master state: current computation (master as a FSM)
-	Jobs        int          // Master state: number of jobs in the work queue
-	Responses   int          // Master state: number of read result messages
-	Data        sync.Map     // Master state: data collected from result queue (std map is no thread safe)
+	State         *proto.State // Shared node state
+	Role          Role         // What this node has to do
+	Connection    string       // This node connection information
+	APIConnection string       // API Connection string
+	Queue         Queue        // Queue information
+	Master        string       // Master node (set if this node is a worker)
+	Candidacy     int64        // Timestamp of new candidacy (0: no candidate)
+	QueueReader   chan bool    // Cancel channel for worker goroutine
+	Phase         Phase        // Master state: current computation (master as a FSM)
+	Jobs          int          // Master state: number of jobs in the work queue
+	Responses     int          // Master state: number of read result messages
+	Data          sync.Map     // Master state: data collected from result queue (std map is no thread safe)
 }
 
 type Queue struct {
