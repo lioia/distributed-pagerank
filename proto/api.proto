@@ -21,5 +21,6 @@ message Configuration {
 
 message Ranks {
   string master = 1;            // Master connection info
-  map<int32, double> ranks = 2; // Computed ranks
+  string status = 2;            // Status message
+  map<int32, double> ranks = 3; // Computed ranks
 }

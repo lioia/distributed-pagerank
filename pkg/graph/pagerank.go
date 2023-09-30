@@ -8,7 +8,7 @@ import (
 )
 
 // R_(i + 1) (u) = c sum_(v in B_u) (R_i(v) / N_v) + (1 - c)E(u)
-func SingleNodePageRank(graph map[int32]*proto.GraphNode, c, threshold float64) {
+func SingleNodePageRank(graph map[int32]*proto.GraphNode, c, threshold float64) int32 {
 	for i := 0; i < 100; i++ {
 		sum := make(map[int32]float64, len(graph))
 		for id, u := range graph {
@@ -43,9 +43,10 @@ func SingleNodePageRank(graph map[int32]*proto.GraphNode, c, threshold float64) 
 			for i := range graph {
 				graph[i].Rank /= rankSum
 			}
-			return
+			return int32(i)
 		} else {
 			utils.NodeLog("master", "Convergence check failed (%f)", convergenceDiff)
 		}
 	}
+	return 100
 }

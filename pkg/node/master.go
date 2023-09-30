@@ -59,20 +59,9 @@ func masterWait(n *Node) error {
 
 		// No other node in the network -> calculating PageRank on this node
 		if len(n.State.Others) == 0 {
-			graph.SingleNodePageRank(n.State.Graph, n.State.C, n.State.Threshold)
+			n.State.Iteration = graph.SingleNodePageRank(n.State.Graph, n.State.C, n.State.Threshold)
 			fmt.Printf("Computation finished. Sending results to client\n")
-			client, err := utils.ApiCall(n.State.Client)
-			utils.FailOnError("Failed to create connection to the client", err)
-			defer client.Close()
-			results := &proto.Ranks{
-				Ranks:  make(map[int32]float64),
-				Master: n.APIConnection,
-			}
-			for id, v := range n.State.Graph {
-				results.Ranks[id] = v.Rank
-			}
-			_, err = client.Client.Results(client.Ctx, results)
-			utils.FailOnError("Failed to send client results", err)
+			masterSendRanksToClient(n)
 			fmt.Println("Waiting for new computation")
 			// Node Reset
 			n.State = &proto.State{
@@ -164,12 +153,7 @@ func masterConvergence(n *Node) {
 			v.Rank = n.State.Graph[j].Rank
 		}
 	}
-	if convergence > n.State.Threshold {
-		// Does not converge -> iterate
-		utils.NodeLog("master", "Convergence check failed (%f)", convergence)
-		// Start new computation with updated pagerank values
-		n.Phase = Wait
-	} else {
+	if convergence <= n.State.Threshold || n.State.Iteration >= 100 {
 		utils.NodeLog("master", "Convergence check success (%f)", convergence)
 		// Normalize values
 		rankSum := 0.0
@@ -180,18 +164,7 @@ func masterConvergence(n *Node) {
 			n.State.Graph[id].Rank /= rankSum
 		}
 		fmt.Printf("Computation finished. Sending results to client\n")
-		client, err := utils.ApiCall(n.State.Client)
-		utils.FailOnError("Failed to create connection to the client", err)
-		defer client.Close()
-		results := &proto.Ranks{
-			Ranks:  make(map[int32]float64),
-			Master: n.APIConnection,
-		}
-		for id, v := range n.State.Graph {
-			results.Ranks[id] = v.Rank
-		}
-		_, err = client.Client.Results(client.Ctx, results)
-		utils.FailOnError("Failed to send client results", err)
+		masterSendRanksToClient(n)
 		fmt.Println("Waiting for new computation")
 		// Node Reset
 		n.State = &proto.State{
@@ -202,8 +175,35 @@ func masterConvergence(n *Node) {
 		n.Phase = Wait
 		n.Jobs = 0
 		n.Responses = 0
+
+	} else {
+		// Does not converge -> iterate
+		utils.NodeLog("master", "Convergence check failed (%f)", convergence)
+		// Start new computation with updated pagerank values
+		n.Phase = Wait
+		n.State.Iteration += 1
 	}
 	n.Data = sync.Map{}
+}
+
+func masterSendRanksToClient(n *Node) {
+	status := "Failed to converge after 100 iterations"
+	if n.State.Iteration < 100 {
+		status = fmt.Sprintf("Converged after %d iterations", n.State.Iteration)
+	}
+	client, err := utils.ApiCall(n.State.Client)
+	utils.FailOnError("Failed to create connection to the client", err)
+	defer client.Close()
+	results := &proto.Ranks{
+		Ranks:  make(map[int32]float64),
+		Master: n.APIConnection,
+		Status: status,
+	}
+	for id, v := range n.State.Graph {
+		results.Ranks[id] = v.Rank
+	}
+	_, err = client.Client.Results(client.Ctx, results)
+	utils.FailOnError("Failed to send client results", err)
 }
 
 // Master send state to all workers

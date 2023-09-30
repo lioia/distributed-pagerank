@@ -38,7 +38,8 @@ message State {
   double c = 3;                    // PageRank Parameter
   double threshold = 4;            // PageRank Parameter
   string client = 5;               // Client connection information
-  repeated string others = 6;      // Other nodes
+  int32 iteration = 6;             // PageRank iteration number
+  repeated string others = 7;      // Other nodes
 }
 
 message OtherState {
