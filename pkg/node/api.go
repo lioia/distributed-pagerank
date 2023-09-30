@@ -16,14 +16,23 @@ type ApiServerImpl struct {
 }
 
 func (s *ApiServerImpl) GraphUpload(_ context.Context, in *proto.Configuration) (*emptypb.Empty, error) {
-	graph, err := graph.LoadGraphResource(in.Graph)
-	if err != nil {
-		return &emptypb.Empty{}, fmt.Errorf("Failed to load graph: %v", err)
+	var err error
+	g := make(map[int32]*proto.GraphNode)
+	if state := in.GetGraph(); state != "" {
+		// Graph URL was provided, downloading and parsing the graph
+		g, err = graph.LoadGraphResource(state)
+		if err != nil {
+			return &emptypb.Empty{}, fmt.Errorf("Failed to load graph: %v", err)
+		}
+
+	} else if state := in.GetRandomGraph(); state != nil {
+		// Random graph config was provided, generaring the graph
+		g = graph.Generate(state.NumberOfNodes, state.MaxNumberOfEdges)
 	}
 	s.Node.State.Client = in.Connection
 	s.Node.State.C = in.C
 	s.Node.State.Threshold = in.Threshold
-	s.Node.State.Graph = graph
+	s.Node.State.Graph = g
 	return &emptypb.Empty{}, nil
 }
 

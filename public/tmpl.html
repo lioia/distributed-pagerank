@@ -1,7 +1,7 @@
 {{block "ranks.new" .}}
 <form hx-swap="outerHTML" hx-post="/ranks/new" hx-target="#root">
     <p>
-        <label for="api">API</label>
+        <label for="api">Master API</label>
         <input name="api" required />
         {{ if .FormErrors.api }}
         <span class="text-error">{{.FormErrors.api}}</span>
@@ -21,12 +21,22 @@
         <span class="text-error">{{.FormErrors.threshold}}</span>
         {{end}}
     </p>
+    <p>Provide a Graph (URL pointing to a file of the following format)<code># FromNode ToNode</code></p>
     <p>
-        <label for="graph">Graph</label>
-        <input name="graph" required />
-        {{ if .FormErrors.graph }}
-        <span class="text-error">{{.FormErrors.graph}}</span>
+        <label for="graph">Graph URL (optional)</label>
+        <input name="graph" />
+    </p>
+    <p>Alternatively, randomly generate a new graph with:</p>
+    <p>
+        <label for="numNodes">Number of Nodes (optional: default 30)</label>
+        <input name="numNodes" />
+        {{ if .FormErrors.numNodes }}
+        <span class="text-error">{{.FormErrors.numNodes}}</span>
         {{end}}
+    </p>
+    <p>
+        <label for="numEdges">Max number of edge per node (optional: default 5)</label>
+        <input name="numEdges" />
     </p>
     <div class="is-right" style="padding: 8px;">
         <button class="button outline primary" type="submit">Rank</button>
@@ -45,9 +55,15 @@
 <p style="width: 100%; text-align: center;">Node {{ $id }} with rank {{ $rank }}</p>
 {{end}}
 <p style="text-align: center;">
-    Master: {{ .Master}}
+    Master: {{ .Master }}
+</p>
+<p style="text-align: center;">
+    Status: {{ .Status }}
 </p>
 <p style="text-align: center;">
     <a href="/">Compute new ranks</a>
 </p>
+<div class="is-center">
+    {{ .Svg }}
+</div>
 {{end}}

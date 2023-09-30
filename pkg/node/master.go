@@ -194,10 +194,16 @@ func masterSendRanksToClient(n *Node) {
 	client, err := utils.ApiCall(n.State.Client)
 	utils.FailOnError("Failed to create connection to the client", err)
 	defer client.Close()
+	svg, err := graph.ConvertToSvg(n.State.Graph)
+	if err != nil {
+		status = fmt.Sprintf("%s. Failed to create SVG (%+v)", status, err)
+		svg = ""
+	}
 	results := &proto.Ranks{
 		Ranks:  make(map[int32]float64),
 		Master: n.APIConnection,
 		Status: status,
+		Svg:    svg,
 	}
 	for id, v := range n.State.Graph {
 		results.Ranks[id] = v.Rank

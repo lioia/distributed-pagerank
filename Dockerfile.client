@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Update distro packages, install protoc & install protoc generators
 RUN apk update && \
-    apk add --no-cache protoc protobuf-dev && \
+    apk add --no-cache gcc libc-dev protoc protobuf-dev && \
     go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28 && \
     go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
 
@@ -31,7 +31,7 @@ RUN  protoc \
 COPY pkg/ pkg/ 
 COPY cmd/ cmd/
 COPY public/ public/
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o client cmd/client/main.go
+RUN CGO_ENABLED=1 go build -ldflags="-s -w" -o client cmd/client/main.go
 
 CMD [ "/app/client" ]
 

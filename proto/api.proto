@@ -16,11 +16,20 @@ message Configuration {
   string connection = 1; // Client connection info
   double c = 2;          // C value for PageRank
   double threshold = 3;  // Threshold value for PageRank
-  string graph = 4;      // Graph URL
+  oneof value {
+    string graph = 4;            // Graph URL
+    RandomGraph randomGraph = 5; // Configuration for Random Graph
+  }
+}
+
+message RandomGraph {
+  int32 numberOfNodes = 1;    // Number of Nodes of the new graph
+  int32 maxNumberOfEdges = 2; // Max number of outlinks per node
 }
 
 message Ranks {
   string master = 1;            // Master connection info
   string status = 2;            // Status message
-  map<int32, double> ranks = 3; // Computed ranks
+  string svg = 3;               // Graph SVG image
+  map<int32, double> ranks = 4; // Computed ranks
 }

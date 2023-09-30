@@ -29,6 +29,7 @@ build/
 
 # Environment
 .env
+compose.yaml
 
 # AWS Deploy
 *.pem

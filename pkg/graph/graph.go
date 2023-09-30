@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -10,22 +11,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/goccy/go-graphviz"
+	"github.com/goccy/go-graphviz/cgraph"
 	"github.com/lioia/distributed-pagerank/proto"
 )
-
-func Write(output string, graph map[int32]*proto.GraphNode) error {
-	file, err := os.Create(output)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	var contents string
-	for id, v := range graph {
-		contents = fmt.Sprintf("%sNode %d with rank %f\n", contents, id, v.Rank)
-	}
-	_, err = file.WriteString(contents)
-	return err
-}
 
 func LoadGraphResource(resource string) (g map[int32]*proto.GraphNode, err error) {
 	var bytes []byte
@@ -110,6 +99,107 @@ func LoadGraphFromBytes(contents []byte) (map[int32]*proto.GraphNode, error) {
 	}
 
 	return graph, nil
+}
+
+func Generate(numberOfNodes, maxNumberOfEdges int32) map[int32]*proto.GraphNode {
+	graph := make(map[int32]*proto.GraphNode)
+	numberOfOutlinks := make(map[int32]int32)
+	for from := 0; from < int(numberOfNodes); from++ {
+		// Generate number of edges for node from
+		outlinks := rand.Int31n(maxNumberOfEdges) + 1
+		numberOfOutlinks[int32(from)] = outlinks
+		for j := 0; j < int(outlinks); j++ {
+			// Generate node to
+			to := rand.Int31n(numberOfNodes)
+			for to == int32(from) {
+				to = rand.Int31n(numberOfNodes)
+			}
+			// Initialize from and to if they don't exist
+			if graph[int32(from)] == nil {
+				graph[int32(from)] = &proto.GraphNode{
+					InLinks: make(map[int32]*proto.GraphNodeInfo),
+				}
+			}
+			if graph[int32(to)] == nil {
+				graph[int32(to)] = &proto.GraphNode{
+					InLinks: make(map[int32]*proto.GraphNodeInfo),
+				}
+			}
+			// Edge: from -> to
+			graph[to].InLinks[int32(from)] = &proto.GraphNodeInfo{}
+		}
+	}
+
+	// Ensure connectivity by adding an edge between consecutive nodes
+	for i := range graph {
+		if i == 0 {
+			// Skip first node
+			continue
+		}
+		if graph[i].InLinks[i-1] == nil {
+			graph[i].InLinks[i-1] = &proto.GraphNodeInfo{}
+		}
+	}
+
+	// Set default values
+	initialRank := 1.0 / float64(numberOfNodes)
+	total := 0.0
+	for _, u := range graph {
+		probability := rand.Float64()
+		u.Rank = initialRank
+		u.E = probability
+		total += probability
+		for j, v := range u.InLinks {
+			v.Rank = initialRank
+			v.Outlinks = numberOfOutlinks[j]
+		}
+	}
+
+	// Normalize E values (sum i equal to 1)
+	for _, v := range graph {
+		v.E /= total
+	}
+	return graph
+}
+
+func ConvertToSvg(g map[int32]*proto.GraphNode) (string, error) {
+	gviz := graphviz.New()
+	graph, err := gviz.Graph()
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if err := graph.Close(); err != nil {
+			log.Fatal(err)
+		}
+		gviz.Close()
+	}()
+	nodes := make(map[int32]*cgraph.Node)
+	// Create Nodes
+	for i := range g {
+		n, err := graph.CreateNode(fmt.Sprintf("%d", i))
+		if err != nil {
+			return "", err
+		}
+		nodes[i] = n
+	}
+	// Create Edges
+	for i, v := range g {
+		n := nodes[i]
+		for j := range v.InLinks {
+			m := nodes[j]
+			_, err := graph.CreateEdge(fmt.Sprintf("%d -> %d", j, i), m, n)
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+	var buf bytes.Buffer
+	if err := gviz.Render(graph, graphviz.SVG, &buf); err != nil {
+		return "", err
+	}
+	svg := fmt.Sprintf("<svg%s", strings.Split(buf.String(), "<svg")[1])
+	return svg, nil
 }
 
 func convertLine(line string) (int32, int32, bool, error) {

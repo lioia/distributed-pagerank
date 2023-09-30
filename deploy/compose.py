@@ -14,16 +14,15 @@ def worker_node(id, config):
       - "RABBIT_USER={config['rabbit_user']}"
       - "RABBIT_PASSWORD={config['rabbit_password']}"
       - "HEALTH_CHECK={config['health_check']}"
-      - "PORT={config['gprc_port']}"
-      - "MASTER=master:{config['gprc_port']}"
+      - "PORT={config['grpc_port']}"
+      - "MASTER=master:{config['grpc_port']}"
       - "API_PORT={config['api_port']}"
 """
 
 config_file = open("config.json")
 config = json.load(config_file)
 
-compose_str = f"""
-services:
+compose_str = f"""services:
   client:
     build:
       context: .
@@ -55,14 +54,15 @@ services:
         condition: service_healthy # wait for RabbitMQ to completely start
     environment:
       - "HOST=master"
+      - "MASTER=master:{config['grpc_port']}"
       - "RABBIT_HOST=rabbitmq"
       - "RABBIT_USER={config['rabbit_user']}"
       - "RABBIT_PASSWORD={config['rabbit_password']}"
-      - "PORT={config['gprc_port']}"
+      - "PORT={config['grpc_port']}"
       - "API_PORT={config['api_port']}"
       - "HEALTH_CHECK={config['health_check']}"
     healthcheck:
-      test: [ "CMD", "nc", "-z", "-w3", "localhost", "{config['gprc_port']}" ]
+      test: [ "CMD", "nc", "-z", "-w3", "localhost", "{config['grpc_port']}" ]
       interval: 10s
       timeout: 2s
       retries: 5

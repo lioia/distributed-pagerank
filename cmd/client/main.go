@@ -30,6 +30,7 @@ func (t TemplateRenderer) Render(w io.Writer, name string, data interface{}, e e
 type IndexPage struct {
 	Status     string
 	Master     string
+	Svg        template.HTML
 	Values     map[int32]float64
 	Error      string
 	FormErrors map[string]string
@@ -99,6 +100,8 @@ func sseRanks(c echo.Context, ranks chan *proto.Ranks, tmpls *template.Template)
 			err := tmpls.ExecuteTemplate(&msgBuffer, "ranks", IndexPage{
 				Values: values.Ranks,
 				Master: values.Master,
+				Status: values.Status,
+				Svg:    template.HTML(values.Svg),
 			})
 			if err != nil {
 				msg = "Failed to read values"
@@ -116,6 +119,10 @@ func newRanks(ctx echo.Context, connection string) error {
 	cStr := ctx.FormValue("c")
 	thresholdStr := ctx.FormValue("threshold")
 	graph := ctx.FormValue("graph")
+	numNodesStr := ctx.FormValue("numNodes")
+	numNodes := 30
+	numEdgesStr := ctx.FormValue("numEdges")
+	numEdges := 5
 
 	errors := make(map[string]string)
 
@@ -130,8 +137,20 @@ func newRanks(ctx echo.Context, connection string) error {
 	if err != nil {
 		errors["threshold"] = "Failed to parse as a number"
 	}
-	if !strings.HasPrefix(graph, "http") {
+	if graph != "" && !strings.HasPrefix(graph, "http") {
 		errors["graph"] = "Invalid Graph Resource"
+	}
+	if numNodesStr != "" {
+		num, err := strconv.Atoi(numNodesStr)
+		if err != nil {
+			errors["numNodes"] = "Failed to parse as a number"
+		} else if num >= 5 {
+			numNodes = num
+		}
+	}
+	numEdgesTemp, err := strconv.Atoi(numEdgesStr)
+	if err == nil && numEdgesTemp >= 3 {
+		numEdges = numEdgesTemp
 	}
 
 	if len(errors) > 0 {
@@ -141,8 +160,18 @@ func newRanks(ctx echo.Context, connection string) error {
 	configuration := proto.Configuration{
 		C:          c,
 		Threshold:  threshold,
-		Graph:      graph,
 		Connection: connection,
+	}
+
+	if graph != "" {
+		configuration.Value = &proto.Configuration_Graph{Graph: graph}
+	} else {
+		configuration.Value = &proto.Configuration_RandomGraph{
+			RandomGraph: &proto.RandomGraph{
+				NumberOfNodes:    int32(numNodes),
+				MaxNumberOfEdges: int32(numEdges),
+			},
+		}
 	}
 
 	api, err := utils.ApiCall(apiUrl)
