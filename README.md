@@ -6,10 +6,6 @@
   - `protoc`: required for compilation
   - `protobuf-devel` (or equivalent): required to import common message types
 
-## Getting Started
-
-Setup `.env` following `.env.example`
-
 ## Building
 
 - Protocol Buffers
@@ -33,23 +29,11 @@ Setup `.env` following `.env.example`
 ### Running
 
 Local:
-- Configure `.env`
-- Run RabbitMQ:
-  ```bash
-  docker run -it --rm --name rabbitmq -p 5672:5672 rabbitmq
-  ```
-- Run Master:
-  ```bash
-  ./build/server
-  ```
-- Run Workers (use different port each time):
-  ```bash
-  PORT=1235 ./build/server
-  ```
-- Client:
-  ```bash
-  ./build/client
-  ```
+- Configure `config.json` and run
+```bash
+python deploy/local.py
+```
+- Start by following the instructions
 
 Docker Compose:
 - Configure `config.json` and run
@@ -85,11 +69,12 @@ python aws/deploy.py
 
 ## Notes - Docker Compose
 
-- MASTER env var, has to be set like this: `<master_service_name>:<master_port>`
 - To get the web client IP, run `docker ps` to get the container id
   and `docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $id`
 
 ## Project Structure
+
+TODO: UPDATE
 
 ```
 ├── aws                       - AWS deploy configuration files
