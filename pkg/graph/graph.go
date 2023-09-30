@@ -107,7 +107,6 @@ func Generate(numberOfNodes, maxNumberOfEdges int32) map[int32]*proto.GraphNode 
 	for from := 0; from < int(numberOfNodes); from++ {
 		// Generate number of edges for node from
 		outlinks := rand.Int31n(maxNumberOfEdges) + 1
-		numberOfOutlinks[int32(from)] = outlinks
 		for j := 0; j < int(outlinks); j++ {
 			// Generate node to
 			to := rand.Int31n(numberOfNodes)
@@ -138,6 +137,13 @@ func Generate(numberOfNodes, maxNumberOfEdges int32) map[int32]*proto.GraphNode 
 		}
 		if graph[i].InLinks[i-1] == nil {
 			graph[i].InLinks[i-1] = &proto.GraphNodeInfo{}
+		}
+	}
+
+	// Find out number of outlinks
+	for _, v := range graph {
+		for j := range v.InLinks {
+			numberOfOutlinks[j] += 1
 		}
 	}
 
