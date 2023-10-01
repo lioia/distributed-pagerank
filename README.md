@@ -69,16 +69,16 @@ python aws/deploy.py
 
 ## Notes - Docker Compose
 
-- To get the web client IP, run `docker ps` to get the container id
-  and `docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $id`
+- To get the web client IP, run:
+```bash
+docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' `docker ps -f "ancestor=distributed-pagerank-client" | awk 'FNR==2{ print $1 }'`
+```
 
 ## Project Structure
 
-TODO: UPDATE
-
 ```
-├── aws                       - AWS deploy configuration files
-│   ├── ansible                 - Ansible deploy (not updated, not working correctly)
+├── aws                       - AWS Deploy Configuration files
+│   ├── ansible                 - Ansible deploy (not working, not updated)
 │   │   ├── deploy_ansible.py
 │   │   ├── dp.service.j2
 │   │   ├── mq.aws_ec2.yml
@@ -93,19 +93,22 @@ TODO: UPDATE
 │   ├── dp.tf                   - Terraform specs
 │   ├── variables.tf            - Terraform variables
 │   └── terraform.tfvars        - Terraform configurable variables
+├── config.json               - Configuration for local and docker compose deploy
+├── deploy                    - Deploy scripts for compose and local
+│   ├── compose.py              - Python Script to generate compose.yaml
+│   └── local.py                - Python Script to print local deploy instructions
+├── Dockerfile.client         - Web Client Docker image
+├── Dockerfile.server         - Node Docker image
+├── go.mod                    - Go dependencies
+├── go.sum                    - Go dependencies
 ├── cmd                       - Entrypoints
 │   ├── client
 │   │   └── main.go             - Web Client entrypoint
 │   └── server
 │       └── main.go             - Node entrypoint
-├── compose.yaml              - Docker Compose configuration
-├── Dockerfile.client         - Web Client Docker image
-├── Dockerfile.server         - Node Docker image
-├── go.mod                    - Go dependencies
-├── go.sum                    - Go dependencies
 ├── pkg                       - Code logic
 │   ├── graph                   - Graph logic
-│   │   ├── graph.go              - Graph loading
+│   │   ├── graph.go              - Graph loading and random generation
 │   │   └── pagerank.go           - PageRank implementation (single node)
 │   ├── node                    - gRPC and node logic
 │   │   ├── api.go                - gRPC interaction between client and master
@@ -126,5 +129,5 @@ TODO: UPDATE
 ├── public                    - Files used by web client
 │   ├── index.html              - Main web page
 │   └── tmpl.html               - Templates page
-└── README                    - This file
+└── README.md                 - This file
 ```
