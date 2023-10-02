@@ -4,7 +4,8 @@ Description=distributed-pagerank application
 [Service]
 Environment=PORT=1234
 Environment=HEALTH_CHECK=3000
-Environment=MASTER={{ DP_MASTER }}
+Environment=HOST={{ DP_HOST }}
+Environment=MASTER={{ DP_MASTER }}:1234
 Environment=RABBIT_HOST={{ DP_RABBIT_HOST }}
 Environment=RABBIT_USER={{ DP_RABBIT_USER }}
 Environment=RABBIT_PASSWORD={{ DP_RABBIT_PASSWORD }}

@@ -37,6 +37,7 @@
         src:
           - "{{ local_app_dir }}/pkg"
           - "{{ local_app_dir }}/cmd"
+          - "{{ local_app_dir }}/public"
           - "{{ local_app_dir }}/go.mod"
           - "{{ local_app_dir }}/go.sum"
         dest: "{{ remote_app_dir }}"
@@ -44,7 +45,7 @@
     - name: Compile Application
       shell: |
         cd "{{ remote_app_dir }}"
-        go build -ldflags="-s -w" -o build/node cmd/server/main.go
+        go build -ldflags="-s -w" -o build/node cmd/client/main.go
     - name: Copy systemd unit file
       become: yes
       template:

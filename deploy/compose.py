@@ -4,7 +4,7 @@ def worker_node(id, config):
     return f"""worker_{id}:
     build:
       context: .
-      dockerfile: Dockerfile.server
+      dockerfile: deploy/Dockerfile.server
     depends_on:
       master:
         condition: service_healthy # wait for master gRPC server to start
@@ -26,7 +26,7 @@ compose_str = f"""services:
   client:
     build:
       context: .
-      dockerfile: Dockerfile.client
+      dockerfile: deploy/Dockerfile.client
     ports:
       - 80:80
     environment:
@@ -48,7 +48,7 @@ compose_str = f"""services:
   master:
     build:
       context: .
-      dockerfile: Dockerfile.server
+      dockerfile: deploy/Dockerfile.server
     depends_on:
       rabbitmq:
         condition: service_healthy # wait for RabbitMQ to completely start

@@ -79,6 +79,8 @@ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}
 ```
 ├── aws                       - AWS Deploy Configuration files
 │   ├── ansible                 - Ansible deploy (not working, not updated)
+│   │   ├── client.aws_ec2.yml
+│   │   ├── client.yaml
 │   │   ├── deploy_ansible.py
 │   │   ├── dp.service.j2
 │   │   ├── mq.aws_ec2.yml
@@ -88,17 +90,17 @@ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}
 │   ├── client.sh               - Deploy Web client script
 │   ├── mq.sh                   - Deploy RabbitMQ script
 │   ├── node.sh                 - Deploy node script
-│   ├── deploy.py               - General deploy script
 │   ├── rabbitmq.repo           - RabbitMQ repo (used by mq.sh)
 │   ├── dp.tf                   - Terraform specs
 │   ├── variables.tf            - Terraform variables
 │   └── terraform.tfvars        - Terraform configurable variables
 ├── config.json               - Configuration for local and docker compose deploy
-├── deploy                    - Deploy scripts for compose and local
-│   ├── compose.py              - Python Script to generate compose.yaml
-│   └── local.py                - Python Script to print local deploy instructions
-├── Dockerfile.client         - Web Client Docker image
-├── Dockerfile.server         - Node Docker image
+├── deploy                    - Deploy Scripts for Docker Compose, Local and AWS
+│   ├── aws.py                  - AWS deploy script (based on variables.tf)
+│   ├── compose.py              - Generate compose.yaml (based on config.json)
+│   ├── local.py                - Local deploy instructions (based on config.json)
+│   ├── Dockerfile.client       - Dockerfile for the web client
+│   └── Dockerfile.server       - Dockerfile for the node
 ├── go.mod                    - Go dependencies
 ├── go.sum                    - Go dependencies
 ├── cmd                       - Entrypoints

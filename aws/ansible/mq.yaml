@@ -35,5 +35,9 @@
       shell: |
         rabbitmqctl add_user "{{ DP_RABBIT_USER }} {{ DP_RABBIT_PASSWORD }}"
         rabbitmqctl set_user_tags "{{ DP_RABBIT_USER }}" administrator
-    - name: Reboot
-      reboot:
+        rabbitmqctl set_permissions "{{ DP_RABBIT_USER }}" ".*" ".*" ".*"
+    - name: Restart RabbitMQ service
+      systemd:
+        state: restarted
+        name: "rabbitmq-server.service"
+        enabled: yes
