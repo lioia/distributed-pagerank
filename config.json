@@ -4,5 +4,7 @@
     "rabbit_user": "user",
     "rabbit_password": "user",
     "grpc_port": 1234,
-    "api_port": 5678
+    "api_port": 5678,
+    "key_pair": "vockey",
+    "instance": "t2.micro"
 }

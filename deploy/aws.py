@@ -20,16 +20,16 @@ def run_command(command):
         print(f"Command {command} failed")
         exit(return_code)
 
-def service(host):
+def service(host, config):
     service = f"""[Unit]
 Description=distributed-pagerank application
 
 [Service]
-Environment=PORT=1234
-Environment=API_PORT=5678
-Environment=HEALTH_CHECK=3000
+Environment=PORT={config['grpc_port']}
+Environment=API_PORT={config['api_port']}
+Environment=HEALTH_CHECK={config['health_check']}
 Environment=HOST={host}
-Environment=MASTER={private_master}:1234
+Environment=MASTER={private_master}:{config['grpc_port']}
 Environment=RABBIT_HOST={private_mq_host}
 Environment=RABBIT_USER={mq_user}
 Environment=RABBIT_PASSWORD={mq_password}
@@ -48,7 +48,22 @@ WantedBy=multi-user.target
     service_file.close()
 
 key_pem = input("Please enter the path to key.pem: ")
+
+# Read configuration
+json_file = open("config.json")
+config = json.load(json_file)
+
 os.chdir("aws")
+
+tfvars_str = f"""key_pair = "{config['key_pair']}"
+instance = "{config["instance"]}"
+worker_count = {config["workers"]}
+mq_user = "{config["rabbit_user"]}"
+mq_password = "{config["rabbit_password"]}"
+"""
+tfvars = open("terraform.tfvars", "w")
+tfvars.write(tfvars_str)
+tfvars.close()
 
 print("Creating AWS EC2 instances using Terraform")
 run_command("terraform init")
@@ -88,7 +103,7 @@ t.start()
 threads.append(t)
 
 print("Deploying Master")
-service(private_master)
+service(private_master, config)
 t = threading.Thread(target=run_command, args=(f"./node.sh {key_pem} {public_master} {private_master}",))
 t.start()
 threads.append(t)
@@ -97,7 +112,7 @@ for i in range(len(public_workers_hosts)):
     worker = public_workers_hosts[i]
     private_worker = private_workers_hosts[i]
     print(f"Deploying Worker {worker}")
-    service(private_worker)
+    service(private_worker, config)
     t = threading.Thread(target=run_command, args=(f"./node.sh {key_pem} {worker} {private_worker}",))
     threads.append(t)
     t.start()
@@ -107,7 +122,7 @@ Description=distributed-pagerank application
 
 [Service]
 Environment=HOST={private_client_host}
-Environment=RPC_PORT=1234
+Environment=RPC_PORT={config['grpc_port']}
 Type=simple
 WorkingDirectory=/home/ec2-user/dp
 ExecStart=/home/ec2-user/dp/build/client
@@ -134,4 +149,5 @@ os.remove(f"dp.service_{private_master}")
 for worker in private_workers_hosts:
     os.remove(f"dp.service_{worker}")
 os.remove("dp-client.service")
+os.remove("terraform.tfvars")
 print(f"Correctly deployed application. You can contact it at {public_client_host} (API at: {private_master}:5678)")
