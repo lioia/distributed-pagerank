@@ -1,6 +1,7 @@
 #!/bin/bash
 # $1: key.pem
 # $2: Public IP Address
+# $3: Private IP Address
 
 echo "Installing distributed-pagerank in $2"
 echo "Installing Golang and Protocol Buffer compiler"
@@ -15,7 +16,7 @@ scp -o StrictHostKeyChecking=no -i $1 -r ../pkg ec2-user@$2:/home/ec2-user/dp/pk
 scp -o StrictHostKeyChecking=no -i $1 -r ../cmd ec2-user@$2:/home/ec2-user/dp/cmd
 scp -o StrictHostKeyChecking=no -i $1 ../go.mod ec2-user@$2:/home/ec2-user/dp/go.mod
 scp -o StrictHostKeyChecking=no -i $1 ../go.sum ec2-user@$2:/home/ec2-user/dp/go.sum
-scp -o StrictHostKeyChecking=no -i $1 dp.service ec2-user@$2:/home/ec2-user/dp/dp.service
+scp -o StrictHostKeyChecking=no -i $1 dp.service_$3 ec2-user@$2:/home/ec2-user/dp/dp.service
 echo "Moving systemd service"
 ssh -o StrictHostKeyChecking=no -i $1 ec2-user@$2 "sudo mv /home/ec2-user/dp/dp.service /etc/systemd/system/dp.service"
 echo "Compiling Protocol Buffers"

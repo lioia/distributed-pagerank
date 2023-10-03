@@ -48,7 +48,7 @@ docker compose up --build
 ### AWS
 
 Requirements:
-- `ansible`: [installation instructions](https://docs.ansible.com/ansible/2.9/installation_guide/intro_installation.html)
+<!-- - `ansible`: [installation instructions](https://docs.ansible.com/ansible/2.9/installation_guide/intro_installation.html) -->
 - `terraform`: [installation instructions](https://developer.hashicorp.com/terraform/downloads?product_intent=terraform)
 - AWS CLI: [installation instructions](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 - `python`: run automated script
