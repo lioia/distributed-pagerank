@@ -35,7 +35,6 @@ compose_str = f"""services:
   rabbitmq:
     image: rabbitmq:management-alpine
     ports:
-      - "5672:5672"
       - "15672:15672"
     environment:
       - "RABBITMQ_DEFAULT_USER={config['rabbit_user']}"
