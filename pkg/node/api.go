@@ -4,14 +4,16 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/lioia/distributed-pagerank/pkg/graph"
 	"github.com/lioia/distributed-pagerank/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type ApiServerImpl struct {
-	Node  *Node             // Node state
-	Ranks chan *proto.Ranks // Client state
+	Node       *Node             // Node state
+	Ranks      chan *proto.Ranks // Client state
+	Iterations chan int32        // Client state
 	proto.UnimplementedAPIServer
 }
 
@@ -38,5 +40,10 @@ func (s *ApiServerImpl) GraphUpload(_ context.Context, in *proto.Configuration) 
 
 func (s *ApiServerImpl) Results(_ context.Context, in *proto.Ranks) (*emptypb.Empty, error) {
 	s.Ranks <- in
+	return &emptypb.Empty{}, nil
+}
+
+func (s *ApiServerImpl) Iteration(_ context.Context, in *wrappers.Int32Value) (*emptypb.Empty, error) {
+	s.Iterations <- in.Value
 	return &emptypb.Empty{}, nil
 }

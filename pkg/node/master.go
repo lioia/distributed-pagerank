@@ -15,6 +15,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"
 	protobuf "google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func (n *Node) masterUpdate() {
@@ -77,6 +78,7 @@ func masterWait(n *Node) error {
 			return nil
 		}
 		fmt.Println("Starting computation")
+		masterSendIterationToClient(n)
 		go masterSendUpdateToWorkers(n)
 		err := masterWriteQueue(n, func(m map[int32]*proto.GraphNode) *proto.Job {
 			mapData := make(map[int32]*proto.Map)
@@ -184,6 +186,17 @@ func masterConvergence(n *Node) {
 		n.State.Iteration += 1
 	}
 	n.Data = sync.Map{}
+}
+
+func masterSendIterationToClient(n *Node) {
+	client, err := utils.ApiCall(n.State.Client)
+	utils.FailOnError("Failed to create connection to the client", err)
+	defer client.Close()
+	_, err = client.Client.Iteration(
+		client.Ctx,
+		wrapperspb.Int32(n.State.Iteration),
+	)
+	utils.FailOnError("Failed to send client results", err)
 }
 
 func masterSendRanksToClient(n *Node) {

@@ -49,11 +49,15 @@ func main() {
 	fmt.Printf("Starting client API server on: %s:%d\n", host, rpcPort)
 
 	ranks := make(chan *proto.Ranks)
+	iteration := make(chan int32)
 	// Create gRPC server
 	go func() {
 		defer lis.Close()
 		server := grpc.NewServer()
-		proto.RegisterAPIServer(server, &node.ApiServerImpl{Ranks: ranks})
+		proto.RegisterAPIServer(server, &node.ApiServerImpl{
+			Ranks:      ranks,
+			Iterations: iteration,
+		})
 		err = server.Serve(lis)
 		utils.FailOnError("Failed to serve", err)
 	}()
@@ -76,7 +80,7 @@ func main() {
 		return newRanks(c, fmt.Sprintf("%s:%d", host, rpcPort))
 	})
 	e.GET("/ranks", func(c echo.Context) error {
-		return sseRanks(c, ranks, tmpls)
+		return sseRanks(c, ranks, iteration, tmpls)
 	})
 	log.Println("Starting web server")
 	e.Logger.Fatal(e.Start(fmt.Sprintf(":%d", webPort)))
@@ -86,13 +90,26 @@ func index(c echo.Context) error {
 	return c.Render(200, "index.html", nil)
 }
 
-func sseRanks(c echo.Context, ranks chan *proto.Ranks, tmpls *template.Template) error {
+func sseRanks(c echo.Context, ranks chan *proto.Ranks, iteration chan int32, tmpls *template.Template) error {
 	c.Response().Header().Set("Content-Type", "text/event-stream")
 	c.Response().Header().Set("Cache-Control", "no-cache")
 	c.Response().Header().Set("Connection", "keep-alive")
 	for {
 		select {
 		case <-c.Request().Context().Done():
+			return nil
+		case value := <-iteration:
+			var msgBuffer bytes.Buffer
+			var msg string
+			err := tmpls.ExecuteTemplate(&msgBuffer, "status", IndexPage{
+				Status: fmt.Sprintf("%d", value),
+			})
+			if err != nil {
+				msg = "Failed to read values"
+			} else {
+				msg = strings.ReplaceAll(msgBuffer.String(), "\n", "")
+			}
+			fmt.Fprintf(c.Response().Writer, "data: %s\n\n", msg)
 			return nil
 		case values := <-ranks:
 			var msgBuffer bytes.Buffer

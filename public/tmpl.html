@@ -47,7 +47,7 @@
 
 {{block "status" .}}
 <div hx-ext="sse" sse-connect="/ranks" sse-swap="message">
-    <p style="text-align: center;">Calculating...</p>
+    <p style="text-align: center;">Calculating (iteration: {{ .Status }})...</p>
 </div>
 {{end}}
 {{block "ranks" .}}
