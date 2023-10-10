@@ -6,5 +6,7 @@
     "grpc_port": 1234,
     "api_port": 5678,
     "key_pair": "vockey",
-    "instance": "t2.micro"
+    "instance": "t2.micro",
+    "node_log": false,
+    "server_log": false
 }

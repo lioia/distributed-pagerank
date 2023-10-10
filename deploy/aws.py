@@ -33,8 +33,8 @@ Environment=MASTER={private_master}:{config['grpc_port']}
 Environment=RABBIT_HOST={private_mq_host}
 Environment=RABBIT_USER={mq_user}
 Environment=RABBIT_PASSWORD={mq_password}
-Environment=NODE_LOG=false
-Environment=SERVER_LOG=false
+Environment=NODE_LOG={config['node_log']}
+Environment=SERVER_LOG={config['server_log']}
 Type=simple
 WorkingDirectory=/home/ec2-user/dp
 ExecStart=/home/ec2-user/dp/build/node
