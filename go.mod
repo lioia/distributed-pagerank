@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	github.com/goccy/go-graphviz v0.1.1
+	github.com/golang/protobuf v1.5.3
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.11.1
 	github.com/rabbitmq/amqp091-go v1.8.1
@@ -15,7 +16,6 @@ require (
 	github.com/fogleman/gg v1.3.0 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
-	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/labstack/gommon v0.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect

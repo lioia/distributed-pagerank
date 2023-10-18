@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"html/template"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/goccy/go-graphviz"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -30,7 +32,8 @@ func (t TemplateRenderer) Render(w io.Writer, name string, data interface{}, e e
 type IndexPage struct {
 	Status     string
 	Master     string
-	Svg        template.HTML
+	Dot        string
+	Base64Dot  string
 	Values     map[int32]float64
 	Error      string
 	FormErrors map[string]string
@@ -82,6 +85,7 @@ func main() {
 	e.GET("/ranks", func(c echo.Context) error {
 		return sseRanks(c, ranks, iteration, tmpls)
 	})
+	e.GET("/render/:dot", sseRender)
 	log.Println("Starting web server")
 	e.Logger.Fatal(e.Start(fmt.Sprintf(":%d", webPort)))
 }
@@ -105,7 +109,7 @@ func sseRanks(c echo.Context, ranks chan *proto.Ranks, iteration chan int32, tmp
 				Status: fmt.Sprintf("%d", value),
 			})
 			if err != nil {
-				msg = "Failed to read values"
+				msg = fmt.Sprintf("Failed to read values: %+v", err)
 			} else {
 				msg = strings.ReplaceAll(msgBuffer.String(), "\n", "")
 			}
@@ -114,14 +118,19 @@ func sseRanks(c echo.Context, ranks chan *proto.Ranks, iteration chan int32, tmp
 		case values := <-ranks:
 			var msgBuffer bytes.Buffer
 			var msg string
+			base64Dot := base64.StdEncoding.EncodeToString([]byte(values.DotGraph))
+			if len(values.Ranks) > 60 {
+				base64Dot = "dot"
+			}
 			err := tmpls.ExecuteTemplate(&msgBuffer, "ranks", IndexPage{
-				Values: values.Ranks,
-				Master: values.Master,
-				Status: values.Status,
-				Svg:    template.HTML(values.Svg),
+				Values:    values.Ranks,
+				Master:    values.Master,
+				Status:    values.Status,
+				Dot:       values.DotGraph,
+				Base64Dot: base64Dot,
 			})
 			if err != nil {
-				msg = "Failed to read values"
+				msg = fmt.Sprintf("Failed to read values: %+v", err)
 			} else {
 				msg = strings.ReplaceAll(msgBuffer.String(), "\n", "")
 			}
@@ -129,6 +138,26 @@ func sseRanks(c echo.Context, ranks chan *proto.Ranks, iteration chan int32, tmp
 			return nil
 		}
 	}
+}
+
+func sseRender(c echo.Context) error {
+	c.Response().Header().Set("Content-Type", "text/event-stream")
+	c.Response().Header().Set("Cache-Control", "no-cache")
+	c.Response().Header().Set("Connection", "keep-alive")
+	base64Dot := c.Param("dot")
+	if base64Dot == "dot" {
+		fmt.Fprintf(c.Response().Writer, "data: <p>Failed to render</p>\n\n")
+		return nil
+	}
+	dot, err := base64.StdEncoding.DecodeString(base64Dot)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to decode DOT Graph: %+v", err)
+		fmt.Fprintf(c.Response().Writer, "data: %s\n\n", msg)
+		return nil
+	}
+	svg := convertToSvg(string(dot))
+	fmt.Fprintf(c.Response().Writer, "data: %s\n\n", svg)
+	return nil
 }
 
 func newRanks(ctx echo.Context, connection string) error {
@@ -207,4 +236,27 @@ func newRanks(ctx echo.Context, connection string) error {
 	return ctx.Render(200, "status", IndexPage{
 		Status: "Calculating...",
 	})
+}
+
+func convertToSvg(dotGraph string) string {
+	var tag string
+	gviz := graphviz.New()
+	graph, err := graphviz.ParseBytes([]byte(dotGraph))
+	if err != nil {
+		tag = "<p>Failed to parse DOT Graph</p>"
+		return tag
+	}
+	defer func() {
+		if err := graph.Close(); err != nil {
+			log.Fatal(err)
+		}
+		gviz.Close()
+	}()
+	var buf bytes.Buffer
+	if err := gviz.Render(graph, graphviz.SVG, &buf); err != nil {
+		tag = "<p>Failed to render graph</p>"
+		return tag
+	}
+	tag = fmt.Sprintf("<svg%s", strings.Split(buf.String(), "<svg")[1])
+	return strings.ReplaceAll(tag, "\n", "")
 }

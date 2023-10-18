@@ -204,23 +204,19 @@ func masterSendRanksToClient(n *Node) {
 	if n.State.Iteration < 100 {
 		status = fmt.Sprintf("Converged after %d iterations", n.State.Iteration)
 	}
-	client, err := utils.ApiCall(n.State.Client)
-	utils.FailOnError("Failed to create connection to the client", err)
-	defer client.Close()
-	svg, err := graph.ConvertToSvg(n.State.Graph)
-	if err != nil {
-		status = fmt.Sprintf("%s. Failed to create SVG (%+v)", status, err)
-		svg = ""
-	}
+	dot := graph.ConvertToDot(n.State.Graph)
 	results := &proto.Ranks{
-		Ranks:  make(map[int32]float64),
-		Master: n.APIConnection,
-		Status: status,
-		Svg:    svg,
+		Ranks:    make(map[int32]float64),
+		Master:   n.APIConnection,
+		Status:   status,
+		DotGraph: dot,
 	}
 	for id, v := range n.State.Graph {
 		results.Ranks[id] = v.Rank
 	}
+	client, err := utils.ApiCall(n.State.Client)
+	utils.FailOnError("Failed to create connection to the client", err)
+	defer client.Close()
 	_, err = client.Client.Results(client.Ctx, results)
 	utils.FailOnError("Failed to send client results", err)
 }

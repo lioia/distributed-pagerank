@@ -32,6 +32,6 @@ message RandomGraph {
 message Ranks {
   string master = 1;            // Master connection info
   string status = 2;            // Status message
-  string svg = 3;               // Graph SVG image
+  string dotGraph = 3;          // Graph DOT
   map<int32, double> ranks = 4; // Computed ranks
 }

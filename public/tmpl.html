@@ -46,10 +46,11 @@
 {{end}}
 
 {{block "status" .}}
-<div hx-ext="sse" sse-connect="/ranks" sse-swap="message">
+<div hx-swap="outerHTML" hx-ext="sse" sse-connect="/ranks" sse-swap="message">
     <p style="text-align: center;">Calculating (iteration: {{ .Status }})...</p>
 </div>
 {{end}}
+
 {{block "ranks" .}}
 {{range $id, $rank := .Values}}
 <p style="width: 100%; text-align: center;">Node {{ $id }} with rank {{ $rank }}</p>
@@ -64,6 +65,13 @@
     <a href="/">Compute new ranks</a>
 </p>
 <div class="is-center">
-    {{ .Svg }}
+    <button onclick="navigator.clipboard.writeText('{{.Dot}}')">
+        Copy DOT Graph to Clipboard
+    </button>
+</div>
+<div class="is-center">
+    <div hx-swap="outerHTML" hx-ext="sse" sse-connect="/render/{{.Base64Dot}}" sse-swap="message">
+        <p style="text-align: center;">Rendering...</p>
+    </div>
 </div>
 {{end}}

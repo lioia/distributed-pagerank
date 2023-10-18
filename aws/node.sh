@@ -5,7 +5,7 @@
 
 echo "Installing distributed-pagerank in $2"
 echo "Installing Golang and Protocol Buffer compiler"
-ssh -o StrictHostKeyChecking=no -i $1 ec2-user@$2 "sudo yum install -y golang protobuf-compiler protobuf-devel gcc glibc"
+ssh -o StrictHostKeyChecking=no -i $1 ec2-user@$2 "sudo yum install -y golang protobuf-compiler protobuf-devel"
 echo "Installing gRPC Protocol Buffer extension"
 ssh -o StrictHostKeyChecking=no -i $1 ec2-user@$2 "go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28"
 ssh -o StrictHostKeyChecking=no -i $1 ec2-user@$2 "go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2"

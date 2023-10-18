@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -11,8 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/goccy/go-graphviz"
-	"github.com/goccy/go-graphviz/cgraph"
 	"github.com/lioia/distributed-pagerank/proto"
 )
 
@@ -168,44 +165,14 @@ func Generate(numberOfNodes, maxNumberOfEdges int32) map[int32]*proto.GraphNode 
 	return graph
 }
 
-func ConvertToSvg(g map[int32]*proto.GraphNode) (string, error) {
-	gviz := graphviz.New()
-	graph, err := gviz.Graph()
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		if err := graph.Close(); err != nil {
-			log.Fatal(err)
-		}
-		gviz.Close()
-	}()
-	nodes := make(map[int32]*cgraph.Node)
-	// Create Nodes
-	for i := range g {
-		n, err := graph.CreateNode(fmt.Sprintf("%d", i))
-		if err != nil {
-			return "", err
-		}
-		nodes[i] = n
-	}
-	// Create Edges
+func ConvertToDot(g map[int32]*proto.GraphNode) string {
+	dot := "digraph {"
 	for i, v := range g {
-		n := nodes[i]
 		for j := range v.InLinks {
-			m := nodes[j]
-			_, err := graph.CreateEdge(fmt.Sprintf("%d -> %d", j, i), m, n)
-			if err != nil {
-				return "", err
-			}
+			dot = fmt.Sprintf("%s %d -> %d;", dot, j, i)
 		}
 	}
-	var buf bytes.Buffer
-	if err := gviz.Render(graph, graphviz.SVG, &buf); err != nil {
-		return "", err
-	}
-	svg := fmt.Sprintf("<svg%s", strings.Split(buf.String(), "<svg")[1])
-	return svg, nil
+	return fmt.Sprintf("%s}", dot)
 }
 
 func convertLine(line string) (int32, int32, bool, error) {
