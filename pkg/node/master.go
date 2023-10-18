@@ -223,56 +223,39 @@ func masterSendRanksToClient(n *Node) {
 
 // Master send state to all workers
 func masterSendUpdateToWorkers(n *Node) {
-	crashedWorkers := make(map[int]bool)
 	for i, v := range n.State.Others {
 		worker, err := utils.NodeCall(v)
 		if err != nil {
 			utils.ServerLog("[WARN] Worker %s crashed", v)
-			crashedWorkers[i] = true
+			delete(n.State.Others, i)
 			continue
 		}
 		defer worker.Close()
 		_, err = worker.Client.StateUpdate(worker.Ctx, n.State)
 		if err != nil {
 			utils.ServerLog("[WARN] Worker %s crashed", v)
-			crashedWorkers[i] = true
+			delete(n.State.Others, i)
+			continue
 		}
 	}
-	// Remove crashed
-	var newWorkers []string
-	for i, v := range n.State.Others {
-		if !crashedWorkers[i] {
-			newWorkers = append(newWorkers, v)
-		}
-	}
-	n.State.Others = newWorkers
 }
 
 // Master send other state update to workers
 func masterSendOtherStateUpdate(n *Node) {
-	crashedWorkers := make(map[int]bool)
 	for i, v := range n.State.Others {
 		worker, err := utils.NodeCall(v)
 		if err != nil {
-			crashedWorkers[i] = true
+			delete(n.State.Others, i)
 			continue
 		}
 		defer worker.Close()
 		others := proto.OtherState{Connections: n.State.Others}
 		_, err = worker.Client.OtherStateUpdate(worker.Ctx, &others)
 		if err != nil {
-			crashedWorkers[i] = true
+			delete(n.State.Others, i)
+			continue
 		}
 	}
-
-	// Remove crashed
-	var newWorkers []string
-	for i, v := range n.State.Others {
-		if !crashedWorkers[i] {
-			newWorkers = append(newWorkers, v)
-		}
-	}
-	n.State.Others = newWorkers
 
 	// Do not send state update to working workers
 	// It will happen on next state update

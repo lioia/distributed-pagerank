@@ -70,6 +70,12 @@
     </button>
 </div>
 <div class="is-center">
+    <p>DOT Graph</p>
+</div>
+<div class="is-center">
+    <textarea disabled>{{ .Dot }}</textarea>
+</div>
+<div class="is-center">
     <div hx-swap="outerHTML" hx-ext="sse" sse-connect="/render/{{.Base64Dot}}" sse-swap="message">
         <p style="text-align: center;">Rendering...</p>
     </div>

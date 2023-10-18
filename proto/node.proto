@@ -34,16 +34,16 @@ message Health {
 }
 
 message State {
-  map<int32, GraphNode> graph = 2; // Graph
-  double c = 3;                    // PageRank Parameter
-  double threshold = 4;            // PageRank Parameter
-  string client = 5;               // Client connection information
-  int32 iteration = 6;             // PageRank iteration number
-  repeated string others = 7;      // Other nodes
+  map<int32, GraphNode> graph = 1; // Graph
+  double c = 2;                    // PageRank Parameter
+  double threshold = 3;            // PageRank Parameter
+  string client = 4;               // Client connection information
+  int32 iteration = 5;             // PageRank iteration number
+  map<string, string> others = 6;  // Other nodes (id -> connection)
 }
 
 message OtherState {
-  repeated string connections = 1; // Other nodes in the network
+  map<string, string> connections = 1; // Other nodes in the network
 }
 
 message GraphNode {
@@ -53,12 +53,13 @@ message GraphNode {
 }
 
 message Join {
-  string workQueue = 1;   // Work queue name
-  string resultQueue = 2; // Result queue name
-  State state = 3;        // Master node state
+  string id = 1;          // Assigned Node ID
+  string workQueue = 2;   // Work queue name
+  string resultQueue = 3; // Result queue name
+  State state = 4;        // Master node state
 }
 
 message Candidacy {
   string connection = 1; // Candidate connection information
-  int64 timestamp = 2;   // Used as an ID
+  string id = 2;         // Candidate Id
 }

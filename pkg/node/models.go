@@ -28,13 +28,14 @@ const (
 )
 
 type Node struct {
+	Id            string       // Node ID
 	State         *proto.State // Shared node state
 	Role          Role         // What this node has to do
 	Connection    string       // This node connection information
 	APIConnection string       // API Connection string
 	Queue         Queue        // Queue information
 	Master        string       // Master node (set if this node is a worker)
-	Candidacy     int64        // Timestamp of new candidacy (0: no candidate)
+	Candidacy     string       // Id of new candidacy (0: no candidate)
 	QueueReader   chan bool    // Cancel channel for worker goroutine
 	Phase         Phase        // Master state: current computation (master as a FSM)
 	Jobs          int          // Master state: number of jobs in the work queue
@@ -59,14 +60,12 @@ func RoleToString(role Role) string {
 	return "Undefined"
 }
 
-func (n *Node) InitializeWorker(master string, join *proto.Join) (workQueue, resultQueue string) {
+func (n *Node) InitializeWorker(master string, join *proto.Join) {
+	n.Id = join.Id
 	n.Role = Worker
 	n.Master = master
 	n.State = join.State
-	workQueue = join.WorkQueue
-	resultQueue = join.ResultQueue
 	n.QueueReader = make(chan bool)
-	return
 }
 
 func (n *Node) Update() {

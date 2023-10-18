@@ -13,6 +13,8 @@ HEALTH_CHECK={config['health_check']}
 RABBIT_USER={config['rabbit_user']}
 RABBIT_PASSWORD={config['rabbit_password']}
 WEB_PORT=8080
+NODE_LOG={config['node_log']}
+SERVER_LOG={config['server_log']}
 """
 
 env_file = open(".env", "w")

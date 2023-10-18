@@ -111,6 +111,10 @@ func workerReduce(n *Node, reduce map[int32]*proto.Reduce) map[int32]float64 {
 }
 
 func workerHealthCheck(n *Node) {
+	// There is an election ongoing, skipping health check
+	if n.Candidacy == n.Id {
+		return
+	}
 	master, err := utils.NodeCall(n.Master)
 	if err != nil {
 		// Master didn't respond -> assuming crash
@@ -137,47 +141,37 @@ func workerHealthCheck(n *Node) {
 }
 
 func workerCandidacy(n *Node) {
-	now := time.Now().UnixMilli()
-	candidacy := &proto.Candidacy{Connection: n.Connection, Timestamp: now}
-	n.Candidacy = now
-	toRemove := make(map[int]bool)
+	candidacy := &proto.Candidacy{Connection: n.Connection, Id: n.Id}
+	n.Candidacy = n.Id
 	elected := true
 	for i, v := range n.State.Others {
 		// Skip connection to this node
 		if v == n.Connection {
 			// Remove this node
-			toRemove[i] = true
+			delete(n.State.Others, i)
 			continue
 		}
 		utils.NodeLog("worker", "Contacting worker node: %s", v)
 		worker, err := utils.NodeCall(v)
 		if err != nil {
 			utils.NodeLog("worker", "[WARN] Worker %s crashed", v)
-			toRemove[i] = true
+			delete(n.State.Others, i)
 			continue
 		}
 		defer worker.Close()
 		ack, err := worker.Client.MasterCandidate(worker.Ctx, candidacy)
 		if err != nil {
 			utils.NodeLog("worker", "[WARN] Worker %s crashed", v)
-			toRemove[i] = true
+			delete(n.State.Others, i)
 			continue
 		}
-		// NACK -> there is an older candidacy
+		// NACK -> there is a candidate with a higher Id
 		if !ack.Value {
-			utils.NodeLog("worker", "%s has an older candidacy. Withdrawing from election", v)
+			utils.NodeLog("worker", "%s has a higher Id. Withdrawing from election", v)
 			elected = false
 			break
 		}
 	}
-	// Remove crashed workers from state
-	var newWorkers []string
-	for i, v := range n.State.Others {
-		if !toRemove[i] {
-			newWorkers = append(newWorkers, v)
-		}
-	}
-	n.State.Others = newWorkers
 	if elected {
 		fmt.Println("Elected as new master")
 		// Stop goroutines

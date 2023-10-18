@@ -8,6 +8,7 @@ import (
 	"github.com/lioia/distributed-pagerank/pkg/node"
 	"github.com/lioia/distributed-pagerank/pkg/utils"
 	"github.com/lioia/distributed-pagerank/proto"
+	gonanoid "github.com/matoous/go-nanoid/v2"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"
@@ -42,11 +43,15 @@ func main() {
 	utils.FailOnError("Failed to open a channel to RabbitMQ", err)
 	defer ch.Close()
 
+	id, _ := gonanoid.New()
 	// Base node values
 	n := node.Node{
-		State: &proto.State{},
-		Data:  sync.Map{},
-		Role:  node.Master,
+		Id: id,
+		State: &proto.State{
+			Others: make(map[string]string),
+		},
+		Data: sync.Map{},
+		Role: node.Master,
 		Queue: node.Queue{
 			Conn:    queueConn,
 			Channel: ch,
@@ -69,9 +74,9 @@ func main() {
 		utils.NodeLog("master", "No master node found at %s", env.Master)
 	} else {
 		utils.NodeLog("worker", "Found master at %s", env.Master)
-		workQueueName, resultQueueName := n.InitializeWorker(env.Master, join)
-		env.WorkQueue = workQueueName
-		env.ResultQueue = resultQueueName
+		n.InitializeWorker(env.Master, join)
+		env.WorkQueue = join.WorkQueue
+		env.ResultQueue = join.ResultQueue
 	}
 	// Queue declaration
 	work, err := utils.DeclareQueue(env.WorkQueue, ch)

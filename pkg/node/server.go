@@ -5,6 +5,7 @@ import (
 
 	"github.com/lioia/distributed-pagerank/pkg/utils"
 	"github.com/lioia/distributed-pagerank/proto"
+	gonanoid "github.com/matoous/go-nanoid/v2"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -33,7 +34,15 @@ func (s *NodeServerImpl) HealthCheck(_ context.Context, in *wrapperspb.StringVal
 		health.Value = &proto.Health_Empty{}
 	} else {
 		// Node was not found -> worker does not have last state update
-		s.Node.State.Others = append(s.Node.State.Others, in.Value)
+		id, _ := gonanoid.New()
+		_, ok := s.Node.State.Others[id]
+		for ok || id == s.Node.Id {
+			// ID already assigned to node; generating new one
+			id, _ = gonanoid.New()
+			_, ok = s.Node.State.Others[id]
+		}
+		s.Node.State.Others[id] = in.Value
+		// s.Node.State.Others = append(s.Node.State.Others, in.Value)VgVg
 		health.Value = &proto.Health_State{
 			State: s.Node.State,
 		}
@@ -58,11 +67,20 @@ func (s *NodeServerImpl) OtherStateUpdate(_ context.Context, in *proto.OtherStat
 // From new node to master node
 func (s *NodeServerImpl) NodeJoin(_ context.Context, in *wrapperspb.StringValue) (*proto.Join, error) {
 	utils.ServerLog("NodeJoin: %s", in.Value)
-	s.Node.State.Others = append(s.Node.State.Others, in.Value)
+	id, _ := gonanoid.New()
+	_, ok := s.Node.State.Others[id]
+	for ok || id == s.Node.Id {
+		// ID already assigned to node; generating new one
+		id, _ = gonanoid.New()
+		_, ok = s.Node.State.Others[id]
+	}
+	utils.NodeLog("master", "Assigning %s to %s", id, in.Value)
+	s.Node.State.Others[id] = in.Value
 	constants := proto.Join{
 		WorkQueue:   s.Node.Queue.Work.Name,
 		ResultQueue: s.Node.Queue.Result.Name,
 		State:       s.Node.State,
+		Id:          id,
 	}
 	go masterSendOtherStateUpdate(s.Node)
 	return &constants, nil
@@ -73,9 +91,9 @@ func (s *NodeServerImpl) MasterCandidate(_ context.Context, in *proto.Candidacy)
 	utils.ServerLog("MasterCandidate")
 	msg := "refused"
 	ack := wrapperspb.BoolValue{Value: false}
-	if s.Node.Candidacy < in.Timestamp {
+	if in.Id > s.Node.Candidacy {
 		ack.Value = true
-		s.Node.Candidacy = in.Timestamp
+		s.Node.Candidacy = in.Id
 		s.Node.Master = in.Connection
 		msg = "accepted"
 	}
