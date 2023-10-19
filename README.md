@@ -54,18 +54,24 @@ Requirements:
 - `python`: run automated script
 
 Getting started:
-- Install AWS plugin for Ansible:
-  ```bash
-  ansible-galaxy collection install amazon.aws
-  ```
-- Configure variables in `aws/terraform.tfvars` as desired
+<!-- - Install AWS plugin for Ansible: -->
+<!--   ```bash -->
+<!--   ansible-galaxy collection install amazon.aws -->
+<!--   ``` -->
+- Configure variables in `config.json` as desired
 - Configure AWS CLI in `$HOME/.aws/credentials`
-- Download `key.pem`
+- Download `labsuser.pem`
+  - It might be necessary to change key's permissions: `chmod 400 labsuser.pem`
+- Make `aws/client.sh` and `aws/node.sh` executable: 
+  - `chmod +x aws/client.sh`
+  - `chmod +x aws/node.sh`
 
 Run:
 ```bash
 python aws/deploy.py
 ```
+
+To delete from AWS run `terraform destroy` in `aws/` folder
 
 ## Notes - Docker Compose
 

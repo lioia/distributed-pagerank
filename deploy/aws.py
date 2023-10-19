@@ -31,8 +31,8 @@ Environment=HEALTH_CHECK={config['health_check']}
 Environment=HOST={host}
 Environment=MASTER={private_master}:{config['grpc_port']}
 Environment=RABBIT_HOST={private_mq_host}
-Environment=RABBIT_USER={mq_user}
-Environment=RABBIT_PASSWORD={mq_password}
+Environment=RABBIT_USER={config['rabbit_user']}
+Environment=RABBIT_PASSWORD={config['rabbit_password']}
 Environment=NODE_LOG={config['node_log']}
 Environment=SERVER_LOG={config['server_log']}
 Type=simple
@@ -58,8 +58,6 @@ os.chdir("aws")
 tfvars_str = f"""key_pair = "{config['key_pair']}"
 instance = "{config["instance"]}"
 worker_count = {config["workers"]}
-mq_user = "{config["rabbit_user"]}"
-mq_password = "{config["rabbit_password"]}"
 """
 tfvars = open("terraform.tfvars", "w")
 tfvars.write(tfvars_str)
@@ -86,8 +84,6 @@ public_master = data["dp-master-host-public"]["value"]
 
 private_mq_host = data["dp-mq-host-private"]["value"]
 public_mq_host = data["dp-mq-host-public"]["value"]
-mq_user = data["dp-mq-user"]["value"]
-mq_password = data["dp-mq-password"]["value"]
 
 public_workers_hosts = data["dp-workers-hosts-public"]["value"]
 private_workers_hosts = data["dp-workers-hosts-private"]["value"]
@@ -98,7 +94,7 @@ private_client_host = data["dp-client-host-private"]["value"]
 threads: list[threading.Thread] = []
 
 print("Deploying RabbitMQ")
-t = threading.Thread(target=run_command, args=(f"./mq.sh {key_pem} {public_mq_host} {mq_user} {mq_password}",))
+t = threading.Thread(target=run_command, args=(f"./mq.sh {key_pem} {public_mq_host} {config['rabbit_user']} {config['rabbit_password']}",))
 t.start()
 threads.append(t)
 

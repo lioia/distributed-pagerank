@@ -22,16 +22,6 @@ variable "worker_count" {
   default     = 3
 }
 
-variable "mq_user" {
-  description = "RabbitMQ User"
-  type        = string
-}
-
-variable "mq_password" {
-  description = "RabbitMQ Password"
-  type        = string
-}
-
 variable "vpc_cidr" {
   description = "CIDR Block"
   type        = string

@@ -182,15 +182,6 @@ output "dp-mq-host-public" {
   value = aws_instance.dp-mq.public_ip
 }
 
-output "dp-mq-user" {
-  value = var.mq_user
-}
-
-output "dp-mq-password" {
-  value     = var.mq_password
-  sensitive = true
-}
-
 output "dp-master-host-private" {
   value = aws_instance.dp-master.private_ip
 }
