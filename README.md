@@ -48,7 +48,6 @@ docker compose up --build
 ### AWS
 
 Requirements:
-<!-- - `ansible`: [installation instructions](https://docs.ansible.com/ansible/2.9/installation_guide/intro_installation.html) -->
 - `terraform`: [installation instructions](https://developer.hashicorp.com/terraform/downloads?product_intent=terraform)
 - AWS CLI: [installation instructions](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 - `python`: run automated script
@@ -84,15 +83,6 @@ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}
 
 ```
 ├── aws                       - AWS Deploy Configuration files
-│   ├── ansible                 - Ansible deploy (not working, not updated)
-│   │   ├── client.aws_ec2.yml
-│   │   ├── client.yaml
-│   │   ├── deploy_ansible.py
-│   │   ├── dp.service.j2
-│   │   ├── mq.aws_ec2.yml
-│   │   ├── mq.yaml
-│   │   ├── node.aws_ec2.yml
-│   │   └── node.yaml
 │   ├── client.sh               - Deploy Web client script
 │   ├── mq.sh                   - Deploy RabbitMQ script
 │   ├── node.sh                 - Deploy node script
