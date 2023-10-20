@@ -88,8 +88,7 @@ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}
 │   ├── node.sh                 - Deploy node script
 │   ├── rabbitmq.repo           - RabbitMQ repo (used by mq.sh)
 │   ├── dp.tf                   - Terraform specs
-│   ├── variables.tf            - Terraform variables
-│   └── terraform.tfvars        - Terraform configurable variables
+│   └── variables.tf            - Terraform variables
 ├── config.json               - Configuration for local and docker compose deploy
 ├── deploy                    - Deploy Scripts for Docker Compose, Local and AWS
 │   ├── aws.py                  - AWS deploy script (based on variables.tf)
