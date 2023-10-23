@@ -19,3 +19,24 @@
 
 # Go workspace file
 go.work
+
+# Protocol Buffers
+*.pb.go
+
+# Build
+build/
+*.txt
+
+# Environment
+.env
+compose.yaml
+
+# AWS Deploy
+*.pem
+.terraform/
+terraform.tfstate*
+.terraform.tfstate*
+.terraform.lock.hcl*
+tf.json
+vars.json
+dp.service

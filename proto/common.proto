@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+option go_package = "github.com/lioia/distributed-pagerank/proto";
+
+package proto;
+
+message GraphNodeInfo {
+  int32 outlinks = 1; // Number of outlinks
+  double rank = 2;    // Node Rank (needs to be manually updated)
+}

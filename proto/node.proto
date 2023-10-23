@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+import "proto/common.proto";
+
+option go_package = "github.com/lioia/distributed-pagerank/proto";
+
+package proto;
+
+// Internal Node communication
+service Node {
+  // Worker to Master: check whether the master node is still running
+  rpc HealthCheck(google.protobuf.StringValue) returns (Health) {}
+  // Master to Worker: send master state to workers (consistency)
+  rpc StateUpdate(State) returns (google.protobuf.Empty) {}
+  // Master to Worker: send connected nodes to worker
+  rpc OtherStateUpdate(OtherState) returns (google.protobuf.Empty) {}
+  // Worker to Master: new node asks to join the network
+  rpc NodeJoin(google.protobuf.StringValue) returns (Join) {}
+  // Worker to Worker: announces its candidacy as new master
+  // Returns true if the worker node has accepted it
+  rpc MasterCandidate(Candidacy) returns (google.protobuf.BoolValue) {}
+}
+
+message Health {
+  oneof value {
+    // Worker was not known to the master (missed last state update)
+    State state = 1;
+    // Worker was known to master (already up to date)
+    google.protobuf.Empty empty = 2;
+  }
+}
+
+message State {
+  map<int32, GraphNode> graph = 1; // Graph
+  double c = 2;                    // PageRank Parameter
+  double threshold = 3;            // PageRank Parameter
+  string client = 4;               // Client connection information
+  int32 iteration = 5;             // PageRank iteration number
+  map<string, string> others = 6;  // Other nodes (id -> connection)
+}
+
+message OtherState {
+  map<string, string> connections = 1; // Other nodes in the network
+}
+
+message GraphNode {
+  double rank = 1;                       // Current PageRank
+  double e = 2;                          // E probability vector for this node
+  map<int32, GraphNodeInfo> inLinks = 3; // Incoming nodes
+}
+
+message Join {
+  string id = 1;          // Assigned Node ID
+  string workQueue = 2;   // Work queue name
+  string resultQueue = 3; // Result queue name
+  State state = 4;        // Master node state
+}
+
+message Candidacy {
+  string connection = 1; // Candidate connection information
+  string id = 2;         // Candidate Id
+}

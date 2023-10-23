@@ -1,0 +1,83 @@
+{{block "ranks.new" .}}
+<form hx-swap="outerHTML" hx-post="/ranks/new" hx-target="#root">
+    <p>
+        <label for="api">Master API</label>
+        <input name="api" required />
+        {{ if .FormErrors.api }}
+        <span class="text-error">{{.FormErrors.api}}</span>
+        {{end}}
+    </p>
+    <p>
+        <label for="c">C</label>
+        <input name="c" required />
+        {{ if .FormErrors.c }}
+        <span class="text-error">{{.FormErrors.c}}</span>
+        {{end}}
+    </p>
+    <p>
+        <label for="threshold">Threshold</label>
+        <input name="threshold" required />
+        {{ if .FormErrors.threshold }}
+        <span class="text-error">{{.FormErrors.threshold}}</span>
+        {{end}}
+    </p>
+    <p>Provide a Graph (URL pointing to a file of the following format)<code># FromNode ToNode</code></p>
+    <p>
+        <label for="graph">Graph URL (optional)</label>
+        <input name="graph" />
+    </p>
+    <p>Alternatively, randomly generate a new graph with:</p>
+    <p>
+        <label for="numNodes">Number of Nodes (optional: default 30)</label>
+        <input name="numNodes" />
+        {{ if .FormErrors.numNodes }}
+        <span class="text-error">{{.FormErrors.numNodes}}</span>
+        {{end}}
+    </p>
+    <p>
+        <label for="numEdges">Max number of edge per node (optional: default 5)</label>
+        <input name="numEdges" />
+    </p>
+    <div class="is-right" style="padding: 8px;">
+        <button class="button outline primary" type="submit">Rank</button>
+    </div>
+</form>
+<p class="text-error">{{ .Error}}</p>
+{{end}}
+
+{{block "status" .}}
+<div hx-swap="outerHTML" hx-ext="sse" sse-connect="/ranks" sse-swap="message">
+    <p style="text-align: center;">Calculating (iteration: {{ .Status }})...</p>
+</div>
+{{end}}
+
+{{block "ranks" .}}
+{{range $id, $rank := .Values}}
+<p style="width: 100%; text-align: center;">Node {{ $id }} with rank {{ $rank }}</p>
+{{end}}
+<p style="text-align: center;">
+    Master: {{ .Master }}
+</p>
+<p style="text-align: center;">
+    Status: {{ .Status }}
+</p>
+<p style="text-align: center;">
+    <a href="/">Compute new ranks</a>
+</p>
+<div class="is-center">
+    <button onclick="navigator.clipboard.writeText('{{.Dot}}')">
+        Copy DOT Graph to Clipboard
+    </button>
+</div>
+<div class="is-center">
+    <p>DOT Graph</p>
+</div>
+<div class="is-center">
+    <textarea disabled>{{ .Dot }}</textarea>
+</div>
+<div class="is-center">
+    <div hx-swap="outerHTML" hx-ext="sse" sse-connect="/render/{{.Base64Dot}}" sse-swap="message">
+        <p style="text-align: center;">Rendering...</p>
+    </div>
+</div>
+{{end}}

@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+import "proto/common.proto";
+
+option go_package = "github.com/lioia/distributed-pagerank/proto";
+
+package proto;
+
+message Job {
+  int32 type = 1;                    // Job Type -> 0: Map; 1: Reduce
+  map<int32, Map> mapData = 2;       // Data used for Map computation
+  map<int32, Reduce> reduceData = 3; // Data used for Reduce computation
+}
+
+message Map {
+  map<int32, GraphNodeInfo> inLinks = 1; // ID -> Rank and Outlink info
+}
+
+message Reduce {
+  double sum = 1; // Value from Collect phase
+  double e = 2;   // E (PageRank parameter)
+}
+
+message Result {
+  map<int32, double> values = 1; // Values in Result queue
+}
