@@ -53,15 +53,12 @@ Requirements:
 - `python`: run automated script
 
 Getting started:
-<!-- - Install AWS plugin for Ansible: -->
-<!--   ```bash -->
-<!--   ansible-galaxy collection install amazon.aws -->
-<!--   ``` -->
 - Configure variables in `config.json` as desired
 - Configure AWS CLI in `$HOME/.aws/credentials`
-- Download `labsuser.pem`
-  - It might be necessary to change key's permissions: `chmod 400 labsuser.pem`
-- Make `aws/client.sh` and `aws/node.sh` executable: 
+- Download `labsuser.pem` and change the key's permission:
+  - `chmod 400 labsuser.pem`
+- Make `aws/mq.sh`, `aws/client.sh` and `aws/node.sh` executable: 
+  - `chmod +x aws/mq.sh`
   - `chmod +x aws/client.sh`
   - `chmod +x aws/node.sh`
 
