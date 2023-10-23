@@ -94,15 +94,11 @@ private_client_host = data["dp-client-host-private"]["value"]
 threads: list[threading.Thread] = []
 
 print("Deploying RabbitMQ")
-t = threading.Thread(target=run_command, args=(f"./mq.sh {key_pem} {public_mq_host} {config['rabbit_user']} {config['rabbit_password']}",))
-t.start()
-threads.append(t)
+run_command(f"./mq.sh {key_pem} {public_mq_host} {config['rabbit_user']} {config['rabbit_password']}")
 
 print("Deploying Master")
 service(private_master, config)
-t = threading.Thread(target=run_command, args=(f"./node.sh {key_pem} {public_master} {private_master}",))
-t.start()
-threads.append(t)
+run_command(f"./node.sh {key_pem} {public_master} {private_master}")
 
 for i in range(len(public_workers_hosts)):
     worker = public_workers_hosts[i]
