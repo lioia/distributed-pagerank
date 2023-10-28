@@ -41,6 +41,9 @@ func (s *NodeServerImpl) HealthCheck(_ context.Context, in *wrapperspb.StringVal
 			id, _ = gonanoid.New()
 			_, ok = s.Node.State.Others[id]
 		}
+		if s.Node.State.Others == nil {
+			s.Node.State.Others = make(map[string]string)
+		}
 		s.Node.State.Others[id] = in.Value
 		// s.Node.State.Others = append(s.Node.State.Others, in.Value)VgVg
 		health.Value = &proto.Health_State{
