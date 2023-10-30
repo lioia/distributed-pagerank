@@ -18,6 +18,7 @@ type NodeServerImpl struct {
 // From worker to master node to check if the master node is still alive
 func (s *NodeServerImpl) HealthCheck(_ context.Context, in *wrapperspb.StringValue) (*proto.Health, error) {
 	// utils.ServerLog("HealthCheck")
+	s.Node.mu.Lock()
 	health := &proto.Health{}
 	// Check if the contacting node is known to the master
 	// A worker node could have been removed from the Others array
@@ -50,6 +51,7 @@ func (s *NodeServerImpl) HealthCheck(_ context.Context, in *wrapperspb.StringVal
 			State: s.Node.State,
 		}
 	}
+	s.Node.mu.Unlock()
 	return health, nil
 }
 
@@ -70,6 +72,7 @@ func (s *NodeServerImpl) OtherStateUpdate(_ context.Context, in *proto.OtherStat
 // From new node to master node
 func (s *NodeServerImpl) NodeJoin(_ context.Context, in *wrapperspb.StringValue) (*proto.Join, error) {
 	utils.ServerLog("NodeJoin: %s", in.Value)
+	s.Node.mu.Lock()
 	id, _ := gonanoid.New()
 	_, ok := s.Node.State.Others[id]
 	for ok || id == s.Node.Id {
@@ -85,6 +88,7 @@ func (s *NodeServerImpl) NodeJoin(_ context.Context, in *wrapperspb.StringValue)
 		State:       s.Node.State,
 		Id:          id,
 	}
+	s.Node.mu.Unlock()
 	go masterSendOtherStateUpdate(s.Node)
 	return &constants, nil
 }

@@ -144,6 +144,7 @@ func workerCandidacy(n *Node) {
 	candidacy := &proto.Candidacy{Connection: n.Connection, Id: n.Id}
 	n.Candidacy = n.Id
 	elected := true
+	n.mu.Lock()
 	for i, v := range n.State.Others {
 		// Skip connection to this node
 		if v == n.Connection {
@@ -172,6 +173,7 @@ func workerCandidacy(n *Node) {
 			break
 		}
 	}
+	n.mu.Unlock()
 	if elected {
 		fmt.Println("Elected as new master")
 		// Stop goroutines

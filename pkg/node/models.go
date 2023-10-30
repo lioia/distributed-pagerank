@@ -28,6 +28,7 @@ const (
 )
 
 type Node struct {
+	mu            sync.Mutex   // Thread Safety for Map in State
 	Id            string       // Node ID
 	State         *proto.State // Shared node state
 	Role          Role         // What this node has to do
